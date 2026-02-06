@@ -1,0 +1,59 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+*.manifest
+*.spec.bak
+
+# PyInstaller
+build/
+dist/
+*.spec~
+
+# Virtual Environments
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+.settings/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+.directory
+
+# Project Specific - User Data
+run_history.json
+
+# Test Files
+test_*.py
+*_test.py
+
+# Logs
+*.log
+
+# Documentation (generated)
+PYINSTALLER_FIX.md
+
+# Temporary files
+*.tmp
+*.bak
+*.old
+~*

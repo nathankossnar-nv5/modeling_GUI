@@ -7,6 +7,7 @@ import sys
 import threading
 import glob
 import os
+import shutil
 from datetime import datetime
 from PIL import Image
 import random
@@ -14,6 +15,34 @@ import json
 
 ctk.set_appearance_mode("system")
 ctk.set_default_color_theme("blue")
+
+
+def get_resource_path(relative_path):
+    """Get absolute path to resource, works for dev and for PyInstaller"""
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = Path(sys._MEIPASS)
+    except Exception:
+        base_path = Path(__file__).parent
+    
+    return base_path / relative_path
+
+
+def get_writable_path(relative_path):
+    """Get path for writable files (configs, history). 
+    When running as exe, use user's AppData folder instead of temp _MEIPASS"""
+    try:
+        # Check if running as PyInstaller bundle
+        _ = sys._MEIPASS
+        # Use user's AppData folder for writable files
+        app_data = Path(os.environ.get('APPDATA', os.path.expanduser('~')))
+        writable_dir = app_data / 'ModelingGUI'
+        writable_dir.mkdir(parents=True, exist_ok=True)
+        return writable_dir / relative_path
+    except Exception:
+        # Running as script, use normal path
+        base_path = Path(__file__).parent
+        return base_path / relative_path
 
 
 class App(TkinterDnD.Tk):   # IMPORTANT: use TkinterDnD root
@@ -38,7 +67,7 @@ class App(TkinterDnD.Tk):   # IMPORTANT: use TkinterDnD root
         title_frame.pack(pady=(15, 20))
         
         # Load and display logo
-        logo_path = Path(__file__).parent / "img" / "logo-nv5-white-no-tagline.png"
+        logo_path = get_resource_path("img") / "logo-nv5-white-no-tagline.png"
         if logo_path.exists():
             try:
                 logo_image = Image.open(logo_path)
@@ -66,7 +95,7 @@ class App(TkinterDnD.Tk):   # IMPORTANT: use TkinterDnD root
         self.script_label.pack(pady=(10, 5))
         
         # Get all Python files in the current directory
-        script_dir = Path(__file__).parent
+        script_dir = get_resource_path(".")
         python_files = [f.name for f in script_dir.glob('*.py') if f.name != 'drag_drop.py']
         
         self.script_dropdown = ctk.CTkComboBox(
@@ -132,7 +161,7 @@ class App(TkinterDnD.Tk):   # IMPORTANT: use TkinterDnD root
         self.script_is_running = False
         
         # History file path
-        self.history_file = Path(__file__).parent / "run_history.json"
+        self.history_file = get_writable_path("run_history.json")
         self._ensure_history_file()
 
         # Button frame for Save and Clear buttons
@@ -299,7 +328,7 @@ class App(TkinterDnD.Tk):   # IMPORTANT: use TkinterDnD root
 
     def open_random_image(self):
         """Open a random image from the img/pets folder"""
-        img_dir = Path(__file__).parent / "img" / "pets"
+        img_dir = get_resource_path("img") / "pets"
         if not img_dir.exists():
             print("img/pets folder not found")
             return
@@ -340,7 +369,7 @@ class App(TkinterDnD.Tk):   # IMPORTANT: use TkinterDnD root
     
     def get_script_docstring(self, script_name):
         """Extract the module-level docstring from a Python script"""
-        script_path = Path(__file__).parent / script_name
+        script_path = get_resource_path(script_name)
         try:
             with open(script_path, 'r', encoding='utf-8') as f:
                 content = f.read()
@@ -535,13 +564,21 @@ class App(TkinterDnD.Tk):   # IMPORTANT: use TkinterDnD root
         
         # Determine config file
         config_filename = self.get_config_filename(script_name)
-        config_path = Path(__file__).parent / config_filename
+        config_path = get_writable_path(config_filename)
         
         # Create config file if it doesn't exist
         if not config_path.exists():
-            default_data = {'folder': None, 'model_path': None, 'out_dir': None}
-            with open(config_path, 'w') as f:
-                yaml.dump(default_data, f, default_flow_style=False)
+            # First try to copy from bundled resources (if running as exe)
+            bundled_config = get_resource_path(config_filename)
+            if bundled_config.exists() and bundled_config != config_path:
+                config_path.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(bundled_config, config_path)
+            else:
+                # Create default config
+                default_data = {'folder': None, 'model_path': None, 'out_dir': None}
+                config_path.parent.mkdir(parents=True, exist_ok=True)
+                with open(config_path, 'w') as f:
+                    yaml.dump(default_data, f, default_flow_style=False)
         
         # Store current config file
         self.current_config_file = config_filename
@@ -551,7 +588,7 @@ class App(TkinterDnD.Tk):   # IMPORTANT: use TkinterDnD root
 
     def load_config_and_rebuild(self, config_filename):
         """Load config file and rebuild the drag/drop fields dynamically"""
-        config_path = Path(__file__).parent / config_filename
+        config_path = get_writable_path(config_filename)
         
         # Clear existing fields
         for widget in self.scroll_frame.winfo_children():
@@ -638,7 +675,7 @@ class App(TkinterDnD.Tk):   # IMPORTANT: use TkinterDnD root
             self.output_textbox.insert("1.0", "Error: No config file selected\n")
             return
             
-        config_path = Path(__file__).parent / config_filename
+        config_path = get_writable_path(config_filename)
         
         try:
             with open(config_path, 'w') as f:
@@ -674,7 +711,7 @@ class App(TkinterDnD.Tk):   # IMPORTANT: use TkinterDnD root
         if not self.current_config_file:
             return True
         
-        config_path = Path(__file__).parent / self.current_config_file
+        config_path = get_writable_path(self.current_config_file)
         try:
             with open(config_path, 'r') as f:
                 saved_values = yaml.safe_load(f) or {}
@@ -693,7 +730,7 @@ class App(TkinterDnD.Tk):   # IMPORTANT: use TkinterDnD root
     def _show_mismatch_warning(self):
         """Show warning popup when GUI values don't match yml values"""
         # Get saved and GUI values
-        config_path = Path(__file__).parent / self.current_config_file
+        config_path = get_writable_path(self.current_config_file)
         with open(config_path, 'r') as f:
             saved_values = yaml.safe_load(f) or {}
         
@@ -898,23 +935,29 @@ class App(TkinterDnD.Tk):   # IMPORTANT: use TkinterDnD root
         # Read current config values
         self.current_config_values = {}
         if self.current_config_file:
-            config_path = Path(__file__).parent / self.current_config_file
+            config_path = get_writable_path(self.current_config_file)
             try:
                 with open(config_path, 'r') as f:
                     self.current_config_values = yaml.safe_load(f) or {}
             except:
                 pass
             
-        script_path = Path(__file__).parent / selected_script
+        script_path = get_resource_path(selected_script)
+        
+        # Get config file path (if exists)
+        config_file_path = None
+        if self.current_config_file:
+            config_file_path = str(get_writable_path(self.current_config_file))
+        
         self.output_textbox.delete("1.0", "end")
         self.output_textbox.insert("1.0", f"Starting {selected_script}...\n")
         
         # Run in a separate thread to avoid blocking GUI
-        thread = threading.Thread(target=self._execute_script, args=(script_path,))
+        thread = threading.Thread(target=self._execute_script, args=(script_path, config_file_path))
         thread.daemon = True
         thread.start()
 
-    def _execute_script(self, script_path):
+    def _execute_script(self, script_path, config_file_path=None):
         try:
             # Get selected conda environment
             selected_env = self.env_dropdown.get()
@@ -923,15 +966,20 @@ class App(TkinterDnD.Tk):   # IMPORTANT: use TkinterDnD root
             env = os.environ.copy()
             env['PYTHONUNBUFFERED'] = '1'
             
+            # Build command with config file path argument if available
+            script_args = f'--config "{config_file_path}"' if config_file_path else ''
+            
             # Build command based on whether conda env is selected
             if selected_env and selected_env != "No conda environments found":
                 # Use conda run to execute in selected environment
                 # Use cmd /c to ensure proper output handling on Windows
-                command = f'cmd /c conda run --no-capture-output -n {selected_env} python -u "{script_path}"'
+                command = f'cmd /c conda run --no-capture-output -n {selected_env} python -u "{script_path}" {script_args}'
                 self.after(0, self._update_output, f"Using conda environment: {selected_env}\n")
             else:
                 # Use system Python - don't use shell for direct python execution
                 command = [sys.executable, '-u', str(script_path)]
+                if config_file_path:
+                    command.extend(['--config', config_file_path])
             
             try:
                 if isinstance(command, str):

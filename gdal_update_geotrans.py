@@ -24,11 +24,34 @@ import glob
 from osgeo import gdal
 import yaml
 from pathlib import Path
+import argparse
+
+# Parse command line arguments
+parser = argparse.ArgumentParser(description='Update geotransform in TIFFs')
+parser.add_argument('--config', type=str, help='Path to config file')
+args = parser.parse_args()
+
+# Determine config file path
+if args.config:
+    config_path = Path(args.config)
+else:
+    # Fallback to default location
+    config_path = Path(__file__).parent / 'gdal_update_geotrans_config.yml'
+
+print(f"Loading config from: {config_path}", flush=True)
 
 # Load configuration from YAML file
-config_path = Path(__file__).parent / 'gdal_update_geotrans_config.yml'
-with open(config_path, 'r') as f:
-    config = yaml.safe_load(f)
+try:
+    with open(config_path, 'r') as f:
+        config = yaml.safe_load(f)
+    
+    if config is None:
+        raise ValueError("Config file is empty")
+        
+    print(f"Config loaded successfully", flush=True)
+except Exception as e:
+    print(f"Error loading config: {e}", flush=True)
+    raise
 
 img_dir = config['img_dir']
 label_dir = config['label_dir']
