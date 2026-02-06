@@ -49,7 +49,7 @@ class App(TkinterDnD.Tk):   # IMPORTANT: use TkinterDnD root
     def __init__(self):
         super().__init__()
 
-        self.title("Drag and Drop File Path")
+        self.title("NV5 Script GUI")
         self.geometry("700x1120")
 
         # Font configuration
