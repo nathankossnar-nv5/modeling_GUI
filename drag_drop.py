@@ -20,7 +20,7 @@ class App(TkinterDnD.Tk):   # IMPORTANT: use TkinterDnD root
         super().__init__()
 
         self.title("Drag and Drop File Path")
-        self.geometry("700x1030")
+        self.geometry("700x1120")
 
         # Font configuration
         self.label_font = ("Segoe UI", 14)
@@ -79,6 +79,28 @@ class App(TkinterDnD.Tk):   # IMPORTANT: use TkinterDnD root
         if python_files:
             self.script_dropdown.set(python_files[0])
         self.script_dropdown.pack(pady=5)
+
+        # Conda environment selector
+        self.env_label = ctk.CTkLabel(self.main_frame, text="Conda Environment:", font=self.label_font)
+        self.env_label.pack(pady=(10, 5))
+        
+        # Get conda environments
+        conda_envs = self.get_conda_environments()
+        
+        self.env_dropdown = ctk.CTkComboBox(
+            self.main_frame,
+            values=conda_envs if conda_envs else ["No conda environments found"],
+            width=400,
+            height=40,
+            font=self.entry_font
+        )
+        if conda_envs:
+            # Try to set to 'base' or first environment
+            if 'base' in conda_envs:
+                self.env_dropdown.set('base')
+            else:
+                self.env_dropdown.set(conda_envs[0])
+        self.env_dropdown.pack(pady=5)
 
         # View documentation button
         self.doc_button = ctk.CTkButton(
@@ -219,6 +241,43 @@ class App(TkinterDnD.Tk):   # IMPORTANT: use TkinterDnD root
         # Load initial config based on first script (after all widgets created)
         if python_files:
             self.on_script_selected(python_files[0])
+
+    def get_conda_environments(self):
+        """Get list of available conda environments"""
+        try:
+            # Try different conda commands for Windows
+            conda_commands = ['conda', 'conda.exe']
+            
+            for conda_cmd in conda_commands:
+                try:
+                    result = subprocess.run(
+                        [conda_cmd, 'env', 'list'],
+                        capture_output=True,
+                        text=True,
+                        timeout=10,
+                        shell=True  # Use shell on Windows
+                    )
+                    
+                    if result.returncode == 0:
+                        envs = []
+                        for line in result.stdout.split('\n'):
+                            # Skip comments and empty lines
+                            if line.strip() and not line.startswith('#'):
+                                # Extract environment name (first word)
+                                parts = line.split()
+                                if parts:
+                                    env_name = parts[0]
+                                    if env_name and env_name != 'conda':
+                                        envs.append(env_name)
+                        if envs:
+                            return envs
+                except FileNotFoundError:
+                    continue
+                    
+        except Exception as e:
+            print(f"Error getting conda environments: {e}")
+        
+        return []
 
     def open_random_image(self):
         """Open a random image from the img/pets folder"""
@@ -815,6 +874,8 @@ class App(TkinterDnD.Tk):   # IMPORTANT: use TkinterDnD root
         # Store script context for error reporting
         self.current_script_name = selected_script
         self.script_start_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        self.current_conda_env = self.env_dropdown.get()  # Store conda environment
+        self.current_command = None  # Will be set when subprocess starts
         
         # Read current config values
         self.current_config_values = {}
@@ -837,22 +898,79 @@ class App(TkinterDnD.Tk):   # IMPORTANT: use TkinterDnD root
 
     def _execute_script(self, script_path):
         try:
-            process = subprocess.Popen(
-                [sys.executable, '-u', str(script_path)],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                bufsize=1
-            )
+            # Get selected conda environment
+            selected_env = self.env_dropdown.get()
+            
+            # Set environment variables for unbuffered output
+            env = os.environ.copy()
+            env['PYTHONUNBUFFERED'] = '1'
+            
+            # Build command based on whether conda env is selected
+            if selected_env and selected_env != "No conda environments found":
+                # Use conda run to execute in selected environment
+                # Use cmd /c to ensure proper output handling on Windows
+                command = f'cmd /c conda run --no-capture-output -n {selected_env} python -u "{script_path}"'
+                self.after(0, self._update_output, f"Using conda environment: {selected_env}\n")
+            else:
+                # Use system Python - don't use shell for direct python execution
+                command = [sys.executable, '-u', str(script_path)]
+            
+            try:
+                if isinstance(command, str):
+                    # Shell command for conda
+                    process = subprocess.Popen(
+                        command,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.STDOUT,
+                        text=True,
+                        bufsize=0,
+                        shell=True,
+                        env=env
+                    )
+                else:
+                    # Direct command for system python
+                    process = subprocess.Popen(
+                        command,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.STDOUT,
+                        text=True,
+                        bufsize=0,
+                        env=env
+                    )
+            except FileNotFoundError as e:
+                # If conda command fails, fall back to system Python
+                if selected_env and selected_env != "No conda environments found":
+                    self.after(0, self._update_output, f"Warning: Could not activate conda environment '{selected_env}', using system Python instead.\n")
+                    command = [sys.executable, '-u', str(script_path)]
+                    process = subprocess.Popen(
+                        command,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.STDOUT,
+                        text=True,
+                        bufsize=0,
+                        env=env
+                    )
+                else:
+                    raise
             
             # Store process reference for stop button
             self.current_process = process
             
+            # Store command for execution details
+            if isinstance(command, str):
+                self.current_command = command
+            else:
+                self.current_command = ' '.join(str(c) for c in command)
+            
             # Read output line by line
-            for line in process.stdout:
-                self.after(0, self._update_output, line)
-                # Check if process was terminated
+            for line in iter(process.stdout.readline, ''):
+                if line:
+                    self.after(0, self._update_output, line)
                 if process.poll() is not None:
+                    # Process finished, read any remaining output
+                    remaining = process.stdout.read()
+                    if remaining:
+                        self.after(0, self._update_output, remaining)
                     break
             
             process.wait()
@@ -925,6 +1043,8 @@ class App(TkinterDnD.Tk):   # IMPORTANT: use TkinterDnD root
             context_info += "EXECUTION CONTEXT:\n"
             context_info += "="*60 + "\n"
             context_info += f"Script: {getattr(self, 'current_script_name', 'Unknown')}\n"
+            context_info += f"Conda Environment: {getattr(self, 'current_conda_env', 'Unknown')}\n"
+            context_info += f"Command: {getattr(self, 'current_command', 'Unknown')}\n"
             context_info += f"Started: {getattr(self, 'script_start_time', 'Unknown')}\n"
             context_info += f"\nConfig File ({getattr(self, 'current_config_file', 'Unknown')}):\n"
             context_info += "-"*60 + "\n"
@@ -1034,6 +1154,8 @@ class App(TkinterDnD.Tk):   # IMPORTANT: use TkinterDnD root
         context_info += "EXECUTION DETAILS:\n"
         context_info += "="*60 + "\n"
         context_info += f"Script: {getattr(self, 'current_script_name', 'Unknown')}\n"
+        context_info += f"Conda Environment: {getattr(self, 'current_conda_env', 'Unknown')}\n"
+        context_info += f"Command: {getattr(self, 'current_command', 'Unknown')}\n"
         context_info += f"Started: {getattr(self, 'script_start_time', 'Unknown')}\n"
         context_info += f"Completed: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
         context_info += f"\nConfig File ({getattr(self, 'current_config_file', 'Unknown')}):\n"
