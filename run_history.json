@@ -1,0 +1,47 @@
+[
+  {
+    "timestamp": "2026-02-06 12:46:35",
+    "script": "wait_script.py",
+    "conda_env": "tree-seg",
+    "config_file": "wait_script_config.yml",
+    "config_values": {
+      "countdown_seconds": "2.8"
+    },
+    "success": false,
+    "command": "cmd /c conda run --no-capture-output -n tree-seg python -u \"C:\\Users\\nathan.kossnar\\Documents\\Modeling\\modeling_GUI\\wait_script.py\""
+  },
+  {
+    "timestamp": "2026-02-06 12:46:15",
+    "script": "debuffer_placeholder.py",
+    "conda_env": "tree-seg",
+    "config_file": "debuffer_placeholder_config.yml",
+    "config_values": {
+      "buffered_tile": "W:/2023_CA_DWR_CII/0_Source_Data",
+      "target_size": "W:/2023_CA_DWR_CII/3_Documentation"
+    },
+    "success": true,
+    "command": "cmd /c conda run --no-capture-output -n tree-seg python -u \"C:\\Users\\nathan.kossnar\\Documents\\Modeling\\modeling_GUI\\debuffer_placeholder.py\""
+  },
+  {
+    "timestamp": "2026-02-06 12:45:54",
+    "script": "wait_script.py",
+    "conda_env": "tree-seg",
+    "config_file": "wait_script_config.yml",
+    "config_values": {
+      "countdown_seconds": "2"
+    },
+    "success": true,
+    "command": "cmd /c conda run --no-capture-output -n tree-seg python -u \"C:\\Users\\nathan.kossnar\\Documents\\Modeling\\modeling_GUI\\wait_script.py\""
+  },
+  {
+    "timestamp": "2026-02-06 12:45:48",
+    "script": "wait_script.py",
+    "conda_env": "tree-seg",
+    "config_file": "wait_script_config.yml",
+    "config_values": {
+      "countdown_seconds": "10"
+    },
+    "success": true,
+    "command": "cmd /c conda run --no-capture-output -n tree-seg python -u \"C:\\Users\\nathan.kossnar\\Documents\\Modeling\\modeling_GUI\\wait_script.py\""
+  }
+]

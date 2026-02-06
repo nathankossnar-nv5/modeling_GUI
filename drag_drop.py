@@ -10,6 +10,7 @@ import os
 from datetime import datetime
 from PIL import Image
 import random
+import json
 
 ctk.set_appearance_mode("system")
 ctk.set_default_color_theme("blue")
@@ -129,6 +130,10 @@ class App(TkinterDnD.Tk):   # IMPORTANT: use TkinterDnD root
         
         # Script execution state
         self.script_is_running = False
+        
+        # History file path
+        self.history_file = Path(__file__).parent / "run_history.json"
+        self._ensure_history_file()
 
         # Button frame for Save and Clear buttons
         button_frame = ctk.CTkFrame(self.main_frame)
@@ -155,6 +160,19 @@ class App(TkinterDnD.Tk):   # IMPORTANT: use TkinterDnD root
             font=self.button_font
         )
         self.clear_button.pack(side="left", padx=5)
+        
+        # History button
+        self.history_button = ctk.CTkButton(
+            button_frame,
+            text="📜 History",
+            command=self.show_history_browser,
+            width=120,
+            height=40,
+            font=self.button_font,
+            fg_color=["#9C27B0", "#7B1FA2"],  # Purple color
+            hover_color=["#BA68C8", "#9C27B0"]
+        )
+        self.history_button.pack(side="left", padx=5)
 
         # Run/Stop button frame
         run_button_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
@@ -977,12 +995,14 @@ class App(TkinterDnD.Tk):   # IMPORTANT: use TkinterDnD root
             
             if process.returncode == 0:
                 self.after(0, self._update_output, "\nScript completed successfully!\n")
+                self.after(0, self._save_run_to_history, True)  # Save successful run
                 self.after(0, self._set_button_success)
                 self.after(0, self._restore_button_state)
                 self.after(0, self._show_success_popup)
             else:
                 stderr_output = process.stderr.read()
                 self.after(0, self._update_output, f"\nError: {stderr_output}\n")
+                self.after(0, self._save_run_to_history, False)  # Save failed run
                 self.after(0, self._set_button_error)
                 self.after(0, self._restore_button_state)
                 self.after(0, lambda: self._show_error_popup(stderr_output, include_context=True))
@@ -990,6 +1010,7 @@ class App(TkinterDnD.Tk):   # IMPORTANT: use TkinterDnD root
         except Exception as e:
             error_msg = str(e)
             self.after(0, self._update_output, f"\nError running script: {e}\n")
+            self.after(0, self._save_run_to_history, False)  # Save failed run
             self.after(0, self._set_button_error)
             self.after(0, self._restore_button_state)
             self.after(0, lambda: self._show_error_popup(error_msg, include_context=True))
@@ -1286,6 +1307,369 @@ class App(TkinterDnD.Tk):   # IMPORTANT: use TkinterDnD root
                 # Window might have been closed
                 if hasattr(self, 'expanded_output_textbox'):
                     del self.expanded_output_textbox
+    
+    def _ensure_history_file(self):
+        """Ensure history file exists"""
+        if not self.history_file.exists():
+            with open(self.history_file, 'w') as f:
+                json.dump([], f)
+    
+    def _save_run_to_history(self, success):
+        """Save current run configuration and results to history"""
+        try:
+            # Read existing history
+            with open(self.history_file, 'r') as f:
+                history = json.load(f)
+            
+            # Create new history entry
+            entry = {
+                'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                'script': getattr(self, 'current_script_name', 'Unknown'),
+                'conda_env': getattr(self, 'current_conda_env', 'Unknown'),
+                'config_file': getattr(self, 'current_config_file', 'Unknown'),
+                'config_values': getattr(self, 'current_config_values', {}),
+                'success': success,
+                'command': getattr(self, 'current_command', 'Unknown')
+            }
+            
+            # Add to beginning of history
+            history.insert(0, entry)
+            
+            # Keep only last 100 runs
+            history = history[:100]
+            
+            # Save back to file
+            with open(self.history_file, 'w') as f:
+                json.dump(history, f, indent=2)
+                
+        except Exception as e:
+            print(f"Error saving to history: {e}")
+    
+    def show_history_browser(self):
+        """Display history browser window"""
+        try:
+            with open(self.history_file, 'r') as f:
+                history = json.load(f)
+        except:
+            history = []
+        
+        if not history:
+            # Show message if no history
+            self.output_textbox.delete("1.0", "end")
+            self.output_textbox.insert("1.0", "No run history available yet.\n")
+            return
+        
+        # Create overlay frame
+        self.history_overlay = ctk.CTkFrame(
+            self,
+            fg_color=("gray80", "gray20"),
+            bg_color="transparent"
+        )
+        self.history_overlay.place(relx=0, rely=0, relwidth=1, relheight=1)
+        
+        # Bind click on overlay to close it
+        self.history_overlay.bind("<Button-1>", lambda e: self._close_history_browser())
+        
+        # Create history frame (centered, larger)
+        history_frame = ctk.CTkFrame(
+            self.history_overlay,
+            width=800,
+            height=600,
+            corner_radius=10
+        )
+        history_frame.place(relx=0.5, rely=0.5, anchor="center")
+        
+        # Prevent clicks on history_frame from closing the overlay
+        history_frame.bind("<Button-1>", lambda e: "break")
+        
+        # Add title label
+        title_label = ctk.CTkLabel(
+            history_frame,
+            text="📜 Run History",
+            font=("Segoe UI", 18, "bold")
+        )
+        title_label.pack(pady=15)
+        title_label.bind("<Button-1>", lambda e: "break")
+        
+        # Add scrollable frame for history items
+        scroll_frame = ctk.CTkScrollableFrame(
+            history_frame,
+            width=760,
+            height=450
+        )
+        scroll_frame.pack(pady=10, padx=20, fill="both", expand=True)
+        scroll_frame.bind("<Button-1>", lambda e: "break")
+        
+        # Display each history entry
+        for i, entry in enumerate(history):
+            self._create_history_entry_widget(scroll_frame, entry, i)
+        
+        # Add close button
+        close_button = ctk.CTkButton(
+            history_frame,
+            text="Close",
+            command=self._close_history_browser,
+            width=120,
+            height=40,
+            font=("Segoe UI", 12, "bold")
+        )
+        close_button.pack(pady=15)
+        close_button.bind("<Button-1>", lambda e: "break")
+    
+    def _create_history_entry_widget(self, parent, entry, index):
+        """Create a widget for a single history entry"""
+        # Determine colors based on success/failure
+        if entry.get('success', False):
+            bg_color = ("#E8F5E9", "#1B5E20")  # Green
+            hover_color = ("#C8E6C9", "#2E7D32")
+            status_icon = "✓"
+        else:
+            bg_color = ("#FFEBEE", "#B71C1C")  # Red
+            hover_color = ("#FFCDD2", "#C62828")
+            status_icon = "✗"
+        
+        # Create frame for this entry
+        entry_frame = ctk.CTkFrame(
+            parent,
+            fg_color=bg_color,
+            corner_radius=8
+        )
+        entry_frame.pack(pady=5, padx=5, fill="x")
+        entry_frame.bind("<Button-1>", lambda e: "break")
+        
+        # Create inner frame for better layout
+        inner_frame = ctk.CTkFrame(entry_frame, fg_color="transparent")
+        inner_frame.pack(pady=10, padx=10, fill="x")
+        inner_frame.bind("<Button-1>", lambda e: "break")
+        
+        # Header with timestamp and status
+        header_frame = ctk.CTkFrame(inner_frame, fg_color="transparent")
+        header_frame.pack(fill="x")
+        header_frame.bind("<Button-1>", lambda e: "break")
+        
+        timestamp_label = ctk.CTkLabel(
+            header_frame,
+            text=f"{status_icon} {entry.get('timestamp', 'Unknown')} - {entry.get('script', 'Unknown')}",
+            font=("Segoe UI", 12, "bold"),
+            anchor="w"
+        )
+        timestamp_label.pack(side="left")
+        timestamp_label.bind("<Button-1>", lambda e: "break")
+        
+        # Environment and config info
+        info_label = ctk.CTkLabel(
+            inner_frame,
+            text=f"Environment: {entry.get('conda_env', 'Unknown')} | Config: {entry.get('config_file', 'Unknown')}",
+            font=("Segoe UI", 10),
+            anchor="w"
+        )
+        info_label.pack(fill="x", pady=(5, 0))
+        info_label.bind("<Button-1>", lambda e: "break")
+        
+        # Configuration values
+        config_values = entry.get('config_values', {})
+        if config_values:
+            config_text = "Settings: "
+            config_items = [f"{k}={v}" for k, v in list(config_values.items())[:3]]
+            config_text += ", ".join(config_items)
+            if len(config_values) > 3:
+                config_text += f" (+{len(config_values)-3} more)"
+            
+            config_label = ctk.CTkLabel(
+                inner_frame,
+                text=config_text,
+                font=("Segoe UI", 9),
+                anchor="w",
+                wraplength=700
+            )
+            config_label.pack(fill="x", pady=(2, 0))
+            config_label.bind("<Button-1>", lambda e: "break")
+        
+        # Button frame
+        button_frame = ctk.CTkFrame(inner_frame, fg_color="transparent")
+        button_frame.pack(pady=(10, 0))
+        button_frame.bind("<Button-1>", lambda e: "break")
+        
+        # Load button
+        load_button = ctk.CTkButton(
+            button_frame,
+            text="📥 Load Settings",
+            command=lambda: self._load_history_entry(entry),
+            width=140,
+            height=32,
+            font=("Segoe UI", 10, "bold"),
+            fg_color=("#2196F3", "#1976D2"),
+            hover_color=("#42A5F5", "#1565C0")
+        )
+        load_button.pack(side="left", padx=5)
+        load_button.bind("<Button-1>", lambda e: "break")
+        
+        # View details button
+        details_button = ctk.CTkButton(
+            button_frame,
+            text="📋 View Details",
+            command=lambda: self._show_history_details(entry),
+            width=140,
+            height=32,
+            font=("Segoe UI", 10, "bold"),
+            fg_color=("#757575", "#616161"),
+            hover_color=("#9E9E9E", "#757575")
+        )
+        details_button.pack(side="left", padx=5)
+        details_button.bind("<Button-1>", lambda e: "break")
+    
+    def _load_history_entry(self, entry):
+        """Load configuration from a history entry"""
+        try:
+            # Switch to the script from history
+            script_name = entry.get('script', '')
+            if script_name and script_name in self.script_dropdown.cget('values'):
+                self.script_dropdown.set(script_name)
+                self.on_script_selected(script_name)
+            
+            # Switch to the conda environment from history
+            conda_env = entry.get('conda_env', '')
+            if conda_env and conda_env in self.env_dropdown.cget('values'):
+                self.env_dropdown.set(conda_env)
+            
+            # Load configuration values
+            config_values = entry.get('config_values', {})
+            for key, value in config_values.items():
+                if key in self.field_entries:
+                    self.field_entries[key].delete(0, "end")
+                    if value:
+                        self.field_entries[key].insert(0, str(value))
+            
+            # Close history browser
+            self._close_history_browser()
+            
+            # Show confirmation message
+            self.output_textbox.delete("1.0", "end")
+            self.output_textbox.insert("1.0", f"✓ Loaded settings from {entry.get('timestamp', 'previous run')}\n\n")
+            self.output_textbox.insert("end", "Configuration loaded successfully!\n")
+            self.output_textbox.insert("end", "-" * 40 + "\n")
+            for key, value in config_values.items():
+                self.output_textbox.insert("end", f"{key}: {value}\n")
+            
+            # Reset save button color since values changed
+            self._reset_save_button_color()
+            
+        except Exception as e:
+            print(f"Error loading history entry: {e}")
+            self.output_textbox.delete("1.0", "end")
+            self.output_textbox.insert("1.0", f"Error loading history entry: {e}\n")
+    
+    def _show_history_details(self, entry):
+        """Show detailed information about a history entry"""
+        details = "="*60 + "\n"
+        details += "RUN DETAILS\n"
+        details += "="*60 + "\n"
+        details += f"Timestamp: {entry.get('timestamp', 'Unknown')}\n"
+        details += f"Script: {entry.get('script', 'Unknown')}\n"
+        details += f"Conda Environment: {entry.get('conda_env', 'Unknown')}\n"
+        details += f"Config File: {entry.get('config_file', 'Unknown')}\n"
+        details += f"Status: {'✓ Success' if entry.get('success', False) else '✗ Failed'}\n"
+        details += f"Command: {entry.get('command', 'Unknown')}\n"
+        details += "\nConfiguration Values:\n"
+        details += "-"*60 + "\n"
+        
+        config_values = entry.get('config_values', {})
+        if config_values:
+            for key, value in config_values.items():
+                details += f"  {key}: {value}\n"
+        else:
+            details += "  (No configuration values)\n"
+        
+        # Create overlay for details
+        self.details_overlay = ctk.CTkFrame(
+            self,
+            fg_color=("gray80", "gray20"),
+            bg_color="transparent"
+        )
+        self.details_overlay.place(relx=0, rely=0, relwidth=1, relheight=1)
+        self.details_overlay.bind("<Button-1>", lambda e: self._close_details_overlay())
+        
+        # Create details frame
+        details_frame = ctk.CTkFrame(
+            self.details_overlay,
+            width=600,
+            height=500,
+            corner_radius=10
+        )
+        details_frame.place(relx=0.5, rely=0.5, anchor="center")
+        details_frame.bind("<Button-1>", lambda e: "break")
+        
+        # Title
+        title_label = ctk.CTkLabel(
+            details_frame,
+            text="📋 Run Details",
+            font=("Segoe UI", 16, "bold")
+        )
+        title_label.pack(pady=15)
+        title_label.bind("<Button-1>", lambda e: "break")
+        
+        # Details textbox
+        details_textbox = ctk.CTkTextbox(
+            details_frame,
+            width=560,
+            height=350,
+            font=("Segoe UI", 11)
+        )
+        details_textbox.pack(pady=10, padx=20)
+        details_textbox.insert("1.0", details)
+        details_textbox.bind("<Button-1>", lambda e: "break")
+        
+        # Store details for copying
+        self.current_details = details
+        
+        # Button frame
+        button_frame = ctk.CTkFrame(details_frame, fg_color="transparent")
+        button_frame.pack(pady=15)
+        button_frame.bind("<Button-1>", lambda e: "break")
+        
+        # Copy button
+        copy_button = ctk.CTkButton(
+            button_frame,
+            text="📋 Copy",
+            command=self._copy_details_to_clipboard,
+            width=120,
+            height=35,
+            font=("Segoe UI", 11, "bold")
+        )
+        copy_button.pack(side="left", padx=5)
+        copy_button.bind("<Button-1>", lambda e: "break")
+        
+        # Close button
+        close_button = ctk.CTkButton(
+            button_frame,
+            text="Close",
+            command=self._close_details_overlay,
+            width=120,
+            height=35,
+            font=("Segoe UI", 11, "bold")
+        )
+        close_button.pack(side="left", padx=5)
+        close_button.bind("<Button-1>", lambda e: "break")
+    
+    def _close_details_overlay(self):
+        """Close the details overlay"""
+        if hasattr(self, 'details_overlay'):
+            self.details_overlay.destroy()
+            del self.details_overlay
+    
+    def _copy_details_to_clipboard(self):
+        """Copy details to clipboard"""
+        if hasattr(self, 'current_details'):
+            self.clipboard_clear()
+            self.clipboard_append(self.current_details)
+            self.update()
+            print("Details copied to clipboard")
+    
+    def _close_history_browser(self):
+        """Close the history browser overlay"""
+        if hasattr(self, 'history_overlay'):
+            self.history_overlay.destroy()
+            del self.history_overlay
 
 
 app = App()
