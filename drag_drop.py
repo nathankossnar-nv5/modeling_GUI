@@ -13,6 +13,7 @@ from PIL import Image
 import random
 import json
 import signal
+import tkinter as tk
 
 ctk.set_appearance_mode("system")
 ctk.set_default_color_theme("blue")
@@ -63,18 +64,111 @@ def get_writable_path(relative_path):
         return base_path / relative_path
 
 
+class SplashScreen(tk.Toplevel):
+    """Splash screen to display while the GUI is loading"""
+    def __init__(self, parent):
+        super().__init__(parent)
+        
+        # Configure splash window
+        self.overrideredirect(True)  # Remove window decorations
+        
+        # Set splash size
+        splash_width = 400
+        splash_height = 300
+        
+        # Center on screen
+        screen_width = self.winfo_screenwidth()
+        screen_height = self.winfo_screenheight()
+        x = (screen_width - splash_width) // 2
+        y = (screen_height - splash_height) // 2
+        self.geometry(f"{splash_width}x{splash_height}+{x}+{y}")
+        
+        # Create frame with border
+        self.configure(bg='#1a1a1a')
+        frame = tk.Frame(self, bg='#1a1a1a', highlightbackground='#3b8ed0', highlightthickness=2)
+        frame.pack(expand=True, fill='both')
+        
+        # Load and display logo
+        logo_path = get_resource_path("img") / "logo-nv5-white-no-tagline.png"
+        if logo_path.exists():
+            try:
+                logo_image = Image.open(logo_path)
+                # Resize logo for splash screen
+                aspect_ratio = logo_image.width / logo_image.height
+                new_height = 120
+                new_width = int(new_height * aspect_ratio)
+                logo_image = logo_image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+                
+                # Convert to PhotoImage for tkinter
+                self.logo_photo = tk.PhotoImage(data=self._pil_to_png_data(logo_image))
+                
+                logo_label = tk.Label(frame, image=self.logo_photo, bg='#1a1a1a')
+                logo_label.pack(pady=(50, 20))
+            except Exception as e:
+                print(f"Could not load splash logo: {e}")
+        
+        # Loading text
+        loading_label = tk.Label(
+            frame,
+            text="Land Cover Script Interface",
+            font=("Segoe UI", 16, "bold"),
+            bg='#1a1a1a',
+            fg='white'
+        )
+        loading_label.pack(pady=10)
+        
+        status_label = tk.Label(
+            frame,
+            text="Initializing...",
+            font=("Segoe UI", 11),
+            bg='#1a1a1a',
+            fg='#a0a0a0'
+        )
+        status_label.pack(pady=5)
+        
+        # Ensure splash is visible
+        self.update()
+    
+    def _pil_to_png_data(self, pil_image):
+        """Convert PIL image to PNG data for PhotoImage"""
+        import io
+        import base64
+        
+        buffer = io.BytesIO()
+        pil_image.save(buffer, format='PNG')
+        png_data = buffer.getvalue()
+        return base64.b64encode(png_data)
+    
+    def destroy_splash(self):
+        """Destroy the splash screen"""
+        self.destroy()
+
+
 class App(TkinterDnD.Tk):   # IMPORTANT: use TkinterDnD root
-    def __init__(self):
+    def __init__(self, show_splash=True):
         super().__init__()
 
         self.title("NV5 Script GUI")
         self.geometry("700x1160")
+        
+        # Hide window during initialization if splash is shown
+        if show_splash:
+            self.withdraw()
+            self.splash = SplashScreen(self)
+            # Initialize components after splash is displayed
+            self.after(10, self._initialize_components)
+        else:
+            self._initialize_components()
+    
+    def _initialize_components(self):
+        """Initialize all GUI components"""
 
-        # Font configuration
-        self.label_font = ("Segoe UI", 14)
-        self.entry_font = ("Segoe UI", 13)
-        self.button_font = ("Segoe UI", 13, "bold")
-        self.title_font = ("Segoe UI", 22, "bold")
+        # Font configuration (moved to initialization)
+        if not hasattr(self, 'label_font'):
+            self.label_font = ("Segoe UI", 14)
+            self.entry_font = ("Segoe UI", 13)
+            self.button_font = ("Segoe UI", 13, "bold")
+            self.title_font = ("Segoe UI", 22, "bold")
 
         # CustomTkinter frame
         self.main_frame = ctk.CTkFrame(self)
@@ -317,6 +411,17 @@ class App(TkinterDnD.Tk):   # IMPORTANT: use TkinterDnD root
         # Load initial config based on first script (after all widgets created)
         if python_files:
             self.on_script_selected(python_files[0])
+        
+        # If splash was shown, close it and show main window
+        if hasattr(self, 'splash'):
+            self.after(100, self._finish_initialization)
+    
+    def _finish_initialization(self):
+        """Finish initialization by closing splash and showing main window"""
+        if hasattr(self, 'splash'):
+            self.splash.destroy_splash()
+            del self.splash
+        self.deiconify()  # Show the main window
 
     def get_conda_environments(self):
         """Get list of available conda environments"""
@@ -2213,5 +2318,12 @@ Result: Script appears in dropdown with 5 auto-generated input fields!
             del self.history_overlay
 
 
-app = App()
-app.mainloop()
+def main():
+    """Main entry point with splash screen"""
+    # Create and run the main application with splash
+    app = App(show_splash=True)
+    app.mainloop()
+
+
+if __name__ == "__main__":
+    main()
