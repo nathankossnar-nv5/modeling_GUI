@@ -91,9 +91,9 @@ class App(TkinterDnD.Tk):   # IMPORTANT: use TkinterDnD root
         if logo_path.exists():
             try:
                 logo_image = Image.open(logo_path)
-                # Resize logo to fit title (height ~40 pixels)
+                # Resize logo to fit title (height ~55 pixels)
                 aspect_ratio = logo_image.width / logo_image.height
-                new_height = 40
+                new_height = 55
                 new_width = int(new_height * aspect_ratio)
                 logo_image = logo_image.resize((new_width, new_height), Image.Resampling.LANCZOS)
                 logo_ctk = ctk.CTkImage(light_image=logo_image, dark_image=logo_image, size=(new_width, new_height))
@@ -109,6 +109,21 @@ class App(TkinterDnD.Tk):   # IMPORTANT: use TkinterDnD root
             font=self.title_font
         )
         title_label.pack(side="left")
+        
+        # Help button
+        self.help_button = ctk.CTkButton(
+            title_frame,
+            text="ℹ",
+            command=self.show_help_popup,
+            width=35,
+            height=35,
+            font=("Segoe UI", 20),
+            fg_color=["#9E9E9E", "#616161"],
+            hover_color=["#BDBDBD", "#757575"],
+            corner_radius=6,
+            anchor="center"
+        )
+        self.help_button.pack(side="left", padx=(10, 0))
 
         # Script selector dropdown at top
         self.script_label = ctk.CTkLabel(self.main_frame, text="Select Script:", font=self.label_font)
@@ -478,6 +493,107 @@ class App(TkinterDnD.Tk):   # IMPORTANT: use TkinterDnD root
         if hasattr(self, 'doc_overlay'):
             self.doc_overlay.destroy()
             del self.doc_overlay
+    
+    def show_help_popup(self):
+        """Show help popup explaining the app's functionality"""
+        # Create overlay frame (like history browser)
+        self.help_overlay = ctk.CTkFrame(
+            self,
+            fg_color=("gray80", "gray20"),
+            bg_color="transparent"
+        )
+        self.help_overlay.place(relx=0, rely=0, relwidth=1, relheight=1)
+        
+        # Bind click on overlay to close it
+        self.help_overlay.bind("<Button-1>", lambda e: self._close_help_popup())
+        
+        # Create help frame (centered)
+        help_frame = ctk.CTkFrame(
+            self.help_overlay,
+            width=650,
+            height=750,
+            corner_radius=10
+        )
+        help_frame.place(relx=0.5, rely=0.5, anchor="center")
+        
+        # Prevent clicks on help_frame from closing the overlay
+        help_frame.bind("<Button-1>", lambda e: "break")
+        
+        # Title
+        title_label = ctk.CTkLabel(
+            help_frame,
+            text="❓ How to Use This Application",
+            font=("Segoe UI", 18, "bold")
+        )
+        title_label.pack(pady=15)
+        title_label.bind("<Button-1>", lambda e: "break")
+        
+        # Help content
+        help_text = """Welcome to the Land Cover Script Interface!
+
+This application provides a user-friendly way to run geospatial land cover analysis scripts with custom parameters.
+
+MAIN FEATURES:
+
+1. Script Selection
+   • Choose from available Python scripts in the dropdown menu
+   • Upload .py/.yml to W:\\!Scripts\\GUIs\\Land_Cover_Script_Interface\\scripts
+
+2. Conda Environment
+   • Select the Python environment to run your script
+   • Lists all conda envs installed on your system
+
+3. Dynamic Parameters
+   • The interface automatically loads parameters for the selected script
+   • Parameters are defined in YAML config files with comments for descriptions
+   • Drag and drop files/folders into path fields for convenience
+
+4. Configuration Management
+   • Load previously saved configurations
+
+5. Documentation
+   • Click "View Documentation" to see scripts docstrings in an overlay
+
+6. Run History
+   • Access your previous script runs
+   • Review past configurations and results
+   • Reload settings from history
+   • All history data is stored in run_history.json in your AppData folder
+
+DRAG & DROP:
+
+You can drag and drop files or folders from Windows Explorer directly into any path field. This makes it easy to specify input/output locations without typing long paths.
+"""
+        
+        help_content = ctk.CTkTextbox(
+            help_frame,
+            width=610,
+            height=620,
+            font=("Segoe UI", 12),
+            wrap="word"
+        )
+        help_content.pack(pady=10, padx=20, fill="both", expand=True)
+        help_content.insert("1.0", help_text)
+        help_content.configure(state="disabled")  # Make read-only
+        help_content.bind("<Button-1>", lambda e: "break")
+        
+        # Close button
+        close_button = ctk.CTkButton(
+            help_frame,
+            text="Close",
+            command=self._close_help_popup,
+            width=120,
+            height=40,
+            font=("Segoe UI", 12, "bold")
+        )
+        close_button.pack(pady=15)
+        close_button.bind("<Button-1>", lambda e: "break")
+    
+    def _close_help_popup(self):
+        """Close the help popup overlay"""
+        if hasattr(self, 'help_overlay'):
+            self.help_overlay.destroy()
+            del self.help_overlay
     
     def show_expanded_output(self):
         """Show output in an expanded pop-out window"""
