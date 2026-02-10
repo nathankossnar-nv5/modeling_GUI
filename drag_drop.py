@@ -335,6 +335,25 @@ class App(TkinterDnD.Tk):   # IMPORTANT: use TkinterDnD root
                     )
                     
                     if result.returncode == 0:
+                        # Store the working conda command for later use
+                        self.conda_executable = conda_cmd
+                        
+                        # Try to find the full path to conda
+                        try:
+                            which_result = subprocess.run(
+                                ['where', conda_cmd] if sys.platform == 'win32' else ['which', conda_cmd],
+                                capture_output=True,
+                                text=True,
+                                shell=True
+                            )
+                            if which_result.returncode == 0:
+                                # Get first line (primary conda path)
+                                conda_path = which_result.stdout.strip().split('\n')[0]
+                                if conda_path:
+                                    self.conda_full_path = conda_path
+                        except:
+                            self.conda_full_path = None
+                        
                         envs = []
                         for line in result.stdout.split('\n'):
                             # Skip comments and empty lines
@@ -353,6 +372,9 @@ class App(TkinterDnD.Tk):   # IMPORTANT: use TkinterDnD root
         except Exception as e:
             print(f"Error getting conda environments: {e}")
         
+        # If we get here, conda wasn't found
+        self.conda_executable = None
+        self.conda_full_path = None
         return []
 
     def open_random_image(self):
@@ -559,6 +581,153 @@ DRAG & DROP:
 You can drag and drop files or folders from Windows Explorer directly into any path field. This makes it easy to specify input/output locations without typing long paths.
 """
         
+        # SOP content for adding new scripts
+        sop_text = """Adding New Scripts
+
+=================================================================
+OVERVIEW
+=================================================================
+This tool automatically discovers Python scripts from the network drive and generates UI fields based on YAML configuration files.
+
+Key Concepts:
+• Scripts Location: W:\\!Scripts\\GUIs\\Land_Cover_Script_Interface\\scripts
+• Auto-Discovery: Scripts detected via *.py file scanning
+• Config-Driven UI: Parameter fields generated from *_config.yml files
+• Conda Integration: Scripts run in user-selected conda environments
+
+=================================================================
+QUICK STEPS
+=================================================================
+
+1. PREPARE YOUR PYTHON SCRIPT
+   • Add docstring explaining purpose (shown in View Documentation)
+   • Accept command-line arguments using argparse
+   • Print progress updates to stdout (appears in GUI output)
+   • Handle errors gracefully with clear messages
+
+   Example:
+   ``````````````````````
+   import argparse
+   
+   parser = argparse.ArgumentParser()
+   parser.add_argument('--input_folder', required=True)
+   parser.add_argument('--output_folder', required=True)
+   args = parser.parse_args()
+   ```````````````````````
+2. CREATE CONFIG YAML FILE
+   • Name it: [script_name]_config.yml
+   • Example: my_script.py → my_script_config.yml
+   • Add parameters with comments (comments become placeholder text)
+   
+   Example config file:
+   ```````````````````````
+   # Drag and drop input folder here
+   input_folder: null
+   
+   # Path to trained model file
+   model_path: null
+   
+   # Output directory for results
+   output_folder: null
+   
+   # Confidence threshold (0.0 to 1.0)
+   threshold: 0.8
+    ```````````````````````
+3. UPLOAD FILES
+   • Copy both .py and .yml files to:
+     W:\\!Scripts\\GUIs\\Land_Cover_Script_Interface\\scripts\\
+   • Files must be in the same directory
+
+4. TEST IN GUI
+   • Restart GUI (or just reselect script)
+   • Your script appears in dropdown automatically
+   • Parameter fields generate from your YAML file
+   • Comments from YAML show as placeholder text
+   • Test drag-and-drop on path fields
+   • Click "View Documentation" to see your docstring
+   • Select appropriate conda environment
+   • Run and verify output
+
+=================================================================
+IMPORTANT DETAILS
+=================================================================
+
+NAMING REQUIREMENTS:
+• Script: my_script.py
+• Config: my_script_config.yml (exact name match required)
+
+COMMAND-LINE MAPPING:
+Your YAML parameters are passed as command-line arguments:
+• input_folder: null → --input_folder "path/to/folder"
+• threshold: 0.8 → --threshold 0.8
+• use_gpu: true → --use_gpu (flag passed)
+• use_gpu: false → (flag omitted)
+
+PLACEHOLDER TEXT:
+Comments above YAML parameters become field placeholder text:
+# This text appears in the GUI field
+input_folder: null
+
+
+=================================================================
+COMPLETE EXAMPLE
+=================================================================
+
+File: classify_landcover.py
+---
+\"\"\"Land Cover Classification Script
+
+Classifies satellite imagery using a trained model.
+
+INPUTS:
+- imagery_folder: GeoTIFF images
+- model_file: Trained PyTorch model (.pth)
+- output_folder: Results directory
+
+OUTPUTS:
+- Classified raster files
+- Confidence maps
+\"\"\"
+
+import argparse
+from pathlib import Path
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--imagery_folder', required=True)
+parser.add_argument('--model_file', required=True)
+parser.add_argument('--output_folder', required=True)
+parser.add_argument('--batch_size', type=int, default=16)
+parser.add_argument('--use_gpu', action='store_true')
+args = parser.parse_args()
+
+print("Starting classification...")
+# Your code here
+print("Complete!")
+---
+
+File: classify_landcover_config.yml
+---
+# Drag and drop folder with GeoTIFF imagery
+imagery_folder: null
+
+# Path to trained PyTorch model file (.pth)
+model_file: null
+
+# Output directory for classification results
+output_folder: null
+
+# Number of images to process simultaneously
+batch_size: 16
+
+# Enable GPU acceleration for faster processing
+use_gpu: true
+---
+
+Both files uploaded to W:\\!Scripts\\GUIs\\Land_Cover_Script_Interface\\scripts
+
+Result: Script appears in dropdown with 5 auto-generated input fields!
+"""
+        
         help_content = ctk.CTkTextbox(
             help_frame,
             width=610,
@@ -571,17 +740,61 @@ You can drag and drop files or folders from Windows Explorer directly into any p
         help_content.configure(state="disabled")  # Make read-only
         help_content.bind("<Button-1>", lambda e: "break")
         
+        # Store references for toggling
+        self.help_textbox = help_content
+        self.help_text_content = help_text
+        self.sop_text_content = sop_text
+        self.showing_help = True
+        
+        # Button frame for Close and Toggle SOP
+        button_frame = ctk.CTkFrame(help_frame, fg_color="transparent")
+        button_frame.pack(pady=15)
+        button_frame.bind("<Button-1>", lambda e: "break")
+        
+        # Toggle SOP button
+        self.toggle_sop_button = ctk.CTkButton(
+            button_frame,
+            text="How to add new scripts",
+            command=self.toggle_sop_view,
+            width=160,
+            height=40,
+            font=("Segoe UI", 12, "bold"),
+            fg_color=["#2E7D32", "#1B5E20"],  # Green color
+            hover_color=["#4CAF50", "#2E7D32"]
+        )
+        self.toggle_sop_button.pack(side="left", padx=5)
+        self.toggle_sop_button.bind("<Button-1>", lambda e: "break")
+        
         # Close button
         close_button = ctk.CTkButton(
-            help_frame,
+            button_frame,
             text="Close",
             command=self._close_help_popup,
             width=120,
             height=40,
             font=("Segoe UI", 12, "bold")
         )
-        close_button.pack(pady=15)
+        close_button.pack(side="left", padx=5)
         close_button.bind("<Button-1>", lambda e: "break")
+    
+    def toggle_sop_view(self):
+        """Toggle between Help and SOP content in the help window"""
+        if self.showing_help:
+            # Switch to SOP
+            self.help_textbox.configure(state="normal")
+            self.help_textbox.delete("1.0", "end")
+            self.help_textbox.insert("1.0", self.sop_text_content)
+            self.help_textbox.configure(state="disabled")
+            self.toggle_sop_button.configure(text="← Back to Help")
+            self.showing_help = False
+        else:
+            # Switch back to Help
+            self.help_textbox.configure(state="normal")
+            self.help_textbox.delete("1.0", "end")
+            self.help_textbox.insert("1.0", self.help_text_content)
+            self.help_textbox.configure(state="disabled")
+            self.toggle_sop_button.configure(text="📋 View SOP")
+            self.showing_help = True
     
     def _close_help_popup(self):
         """Close the help popup overlay"""
@@ -1061,11 +1274,7 @@ You can drag and drop files or folders from Windows Explorer directly into any p
             self.output_textbox.insert("end", "\nA script is already running. Please wait...\n")
             return
         
-        # Check if GUI values match saved yml values
-        if not self._check_values_match():
-            self._show_mismatch_warning()
-            return
-        
+        # Proceed directly with run - values will be saved to AppData automatically
         self._proceed_with_run()
     
     def _proceed_with_run(self):
@@ -1092,24 +1301,32 @@ You can drag and drop files or folders from Windows Explorer directly into any p
         self.current_conda_env = self.env_dropdown.get()  # Store conda environment
         self.current_command = None  # Will be set when subprocess starts
         
-        # Read current config values
+        # Save current GUI values to AppData config file for this run
+        config_file_path = None
         self.current_config_values = {}
         if self.current_config_file:
-            config_path = get_effective_config_path(self.current_config_file)
+            # Get values from all dynamic entry widgets
+            config_data = {}
+            for key, entry in self.field_entries.items():
+                value = entry.get()
+                config_data[key] = value if value else None
+            
+            # Save to AppData (writable location)
+            config_file_path = get_config_writable_path(self.current_config_file)
             try:
-                with open(config_path, 'r') as f:
-                    self.current_config_values = yaml.safe_load(f) or {}
-            except:
-                pass
+                config_file_path.parent.mkdir(parents=True, exist_ok=True)
+                with open(config_file_path, 'w') as f:
+                    yaml.dump(config_data, f, default_flow_style=False)
+                config_file_path = str(config_file_path)
+                self.current_config_values = config_data
+                print(f"Runtime config saved to {config_file_path}")
+            except Exception as e:
+                print(f"Error saving runtime config: {e}")
+                config_file_path = None
             
         # Get script path from scripts directory
         script_dir = Path(r"W:\!Scripts\GUIs\Land_Cover_Script_Interface\scripts")
         script_path = script_dir / selected_script
-        
-        # Get config file path (if exists)
-        config_file_path = None
-        if self.current_config_file:
-            config_file_path = str(get_effective_config_path(self.current_config_file))
         
         self.output_textbox.delete("1.0", "end")
         self.output_textbox.insert("1.0", f"Starting {selected_script}...\n")
@@ -1128,46 +1345,60 @@ You can drag and drop files or folders from Windows Explorer directly into any p
             env = os.environ.copy()
             env['PYTHONUNBUFFERED'] = '1'
             
-            # Build command with config file path argument if available
-            script_args = f'--config "{config_file_path}"' if config_file_path else ''
-            
             # Build command based on whether conda env is selected
-            if selected_env and selected_env != "No conda environments found":
+            # Check if a valid conda environment is selected (not placeholder or error text)
+            if (selected_env and 
+                selected_env not in ["No conda environments found", "Select Conda Environment"]):
                 # Use conda run to execute in selected environment
-                # Use cmd /c to ensure proper output handling on Windows
-                command = f'cmd /c conda run --no-capture-output -n {selected_env} python -u "{script_path}" {script_args}'
+                # Use full path if available, otherwise use command name
+                conda_cmd = getattr(self, 'conda_full_path', None) or getattr(self, 'conda_executable', 'conda') or 'conda'
+                
+                # For .bat files, we need to build a proper command string with escaped quotes
+                if conda_cmd.endswith('.bat'):
+                    # Escape the paths properly for cmd
+                    # Use ^ to escape special characters in cmd
+                    script_path_safe = str(script_path).replace('!', '^!')
+                    config_path_safe = str(config_file_path).replace('!', '^!') if config_file_path else None
+                    
+                    # Build command with proper quoting
+                    command = f'"{conda_cmd}" run --no-capture-output -n {selected_env} python -u "{script_path_safe}"'
+                    if config_path_safe:
+                        command += f' --config "{config_path_safe}"'
+                    use_shell = True
+                else:
+                    # Regular conda executable - build as a list
+                    command = [conda_cmd, 'run', '--no-capture-output', '-n', selected_env, 
+                              'python', '-u', str(script_path)]
+                    if config_file_path:
+                        command.extend(['--config', str(config_file_path)])
+                    use_shell = False
+                
                 self.after(0, self._update_output, f"Using conda environment: {selected_env}\n")
+                if isinstance(command, list):
+                    command_display = ' '.join(f'"{c}"' if ' ' in str(c) else str(c) for c in command)
+                else:
+                    command_display = command
+                self.after(0, self._update_output, f"Command: {command_display}\n")
             else:
                 # Use system Python - don't use shell for direct python execution
+                self.after(0, self._update_output, f"Using system Python (no conda environment selected)\n")
                 command = [sys.executable, '-u', str(script_path)]
                 if config_file_path:
                     command.extend(['--config', config_file_path])
+                use_shell = False
             
             try:
-                if isinstance(command, str):
-                    # Shell command for conda
-                    # CREATE_NEW_PROCESS_GROUP allows us to terminate the entire process tree
-                    process = subprocess.Popen(
-                        command,
-                        stdout=subprocess.PIPE,
-                        stderr=subprocess.STDOUT,
-                        text=True,
-                        bufsize=0,
-                        shell=True,
-                        env=env,
-                        creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if sys.platform == 'win32' else 0
-                    )
-                else:
-                    # Direct command for system python
-                    process = subprocess.Popen(
-                        command,
-                        stdout=subprocess.PIPE,
-                        stderr=subprocess.STDOUT,
-                        text=True,
-                        bufsize=0,
-                        env=env,
-                        creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if sys.platform == 'win32' else 0
-                    )
+                # Execute with appropriate shell setting
+                process = subprocess.Popen(
+                    command,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    bufsize=0,
+                    shell=use_shell,
+                    env=env,
+                    creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if sys.platform == 'win32' else 0
+                )
             except FileNotFoundError as e:
                 # If conda command fails, fall back to system Python
                 if selected_env and selected_env != "No conda environments found":
@@ -1188,10 +1419,10 @@ You can drag and drop files or folders from Windows Explorer directly into any p
             self.current_process = process
             
             # Store command for execution details
-            if isinstance(command, str):
-                self.current_command = command
-            else:
+            if isinstance(command, list):
                 self.current_command = ' '.join(str(c) for c in command)
+            else:
+                self.current_command = command
             
             # Read output line by line
             for line in iter(process.stdout.readline, ''):
