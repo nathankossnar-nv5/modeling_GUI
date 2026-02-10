@@ -70,7 +70,7 @@ class App(TkinterDnD.Tk):   # IMPORTANT: use TkinterDnD root
         super().__init__()
 
         self.title("NV5 Script GUI")
-        self.geometry("700x1120")
+        self.geometry("700x1160")
 
         # Font configuration
         self.label_font = ("Segoe UI", 14)
@@ -159,12 +159,8 @@ class App(TkinterDnD.Tk):   # IMPORTANT: use TkinterDnD root
             height=40,
             font=self.entry_font
         )
-        if conda_envs:
-            # Try to set to 'base' or first environment
-            if 'base' in conda_envs:
-                self.env_dropdown.set('base')
-            else:
-                self.env_dropdown.set(conda_envs[0])
+        # Set default placeholder text
+        self.env_dropdown.set("Select Conda Environment")
         self.env_dropdown.pack(pady=5)
 
         # View documentation button
