@@ -1052,12 +1052,16 @@ class App(TkinterDnD.Tk):   # IMPORTANT: use TkinterDnD root
                 self.after(0, self._restore_button_state)
                 self.after(0, self._show_success_popup)
             else:
-                stderr_output = process.stderr.read()
-                self.after(0, self._update_output, f"\nError: {stderr_output}\n")
+                # Error already captured in stdout (stderr was redirected to stdout)
+                self.after(0, self._update_output, f"\nScript exited with error code {process.returncode}\n")
                 self.after(0, self._save_run_to_history, False)  # Save failed run
                 self.after(0, self._set_button_error)
                 self.after(0, self._restore_button_state)
-                self.after(0, lambda: self._show_error_popup(stderr_output, include_context=True))
+                # Get the full output from the textbox to show in error popup
+                def show_error_with_output():
+                    output_content = self.output_textbox.get("1.0", "end-1c")
+                    self._show_error_popup(output_content, include_context=True)
+                self.after(0, show_error_with_output)
                 
         except Exception as e:
             error_msg = str(e)
