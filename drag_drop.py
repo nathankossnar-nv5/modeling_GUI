@@ -41,10 +41,8 @@ def get_config_writable_path(config_filename):
 
 
 def get_effective_config_path(config_filename):
-    """Get the effective config path - writable version if exists, otherwise scripts directory"""
-    writable_path = get_config_writable_path(config_filename)
-    if writable_path.exists():
-        return writable_path
+    """Get the effective config path - always use scripts directory (W:\ drive)"""
+    # Always use the W:\ scripts directory since it's always mapped
     return get_config_path(config_filename)
 
 
