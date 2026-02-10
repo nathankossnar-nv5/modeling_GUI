@@ -12,6 +12,7 @@ from datetime import datetime
 from PIL import Image
 import random
 import json
+import signal
 
 ctk.set_appearance_mode("system")
 ctk.set_default_color_theme("blue")
@@ -94,8 +95,8 @@ class App(TkinterDnD.Tk):   # IMPORTANT: use TkinterDnD root
         self.script_label = ctk.CTkLabel(self.main_frame, text="Select Script:", font=self.label_font)
         self.script_label.pack(pady=(10, 5))
         
-        # Get all Python files in the current directory
-        script_dir = get_resource_path(".")
+        # Get all Python files from the scripts directory
+        script_dir = Path(r"W:\GUI\Land_Cover_Script_Interface\scripts")
         python_files = [f.name for f in script_dir.glob('*.py') if f.name != 'drag_drop.py']
         
         self.script_dropdown = ctk.CTkComboBox(
@@ -327,10 +328,10 @@ class App(TkinterDnD.Tk):   # IMPORTANT: use TkinterDnD root
         return []
 
     def open_random_image(self):
-        """Open a random image from the img/pets folder"""
-        img_dir = get_resource_path("img") / "pets"
+        """Open a random image from the pet_tax folder"""
+        img_dir = Path(r"W:\GUI\Land_Cover_Script_Interface\pet_tax")
         if not img_dir.exists():
-            print("img/pets folder not found")
+            print("pet_tax folder not found")
             return
         
         # Get all image files
@@ -984,6 +985,7 @@ class App(TkinterDnD.Tk):   # IMPORTANT: use TkinterDnD root
             try:
                 if isinstance(command, str):
                     # Shell command for conda
+                    # CREATE_NEW_PROCESS_GROUP allows us to terminate the entire process tree
                     process = subprocess.Popen(
                         command,
                         stdout=subprocess.PIPE,
@@ -991,7 +993,8 @@ class App(TkinterDnD.Tk):   # IMPORTANT: use TkinterDnD root
                         text=True,
                         bufsize=0,
                         shell=True,
-                        env=env
+                        env=env,
+                        creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if sys.platform == 'win32' else 0
                     )
                 else:
                     # Direct command for system python
@@ -1001,7 +1004,8 @@ class App(TkinterDnD.Tk):   # IMPORTANT: use TkinterDnD root
                         stderr=subprocess.STDOUT,
                         text=True,
                         bufsize=0,
-                        env=env
+                        env=env,
+                        creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if sys.platform == 'win32' else 0
                     )
             except FileNotFoundError as e:
                 # If conda command fails, fall back to system Python
@@ -1087,9 +1091,19 @@ class App(TkinterDnD.Tk):   # IMPORTANT: use TkinterDnD root
         """Stop the currently running script"""
         if self.current_process and self.script_is_running:
             try:
-                self.current_process.terminate()  # Try graceful termination first
-                self.after(1000, self._force_kill_if_needed)  # Force kill after 1 second if still running
-                self._update_output("\n⏹ Script termination requested...\n")
+                if sys.platform == 'win32':
+                    # On Windows, use taskkill to terminate the entire process tree
+                    subprocess.run(
+                        ['taskkill', '/F', '/T', '/PID', str(self.current_process.pid)],
+                        capture_output=True,
+                        timeout=5
+                    )
+                    self._update_output("\n⏹ Script and all child processes terminated.\n")
+                else:
+                    # On Unix-like systems, send SIGTERM to process group
+                    os.killpg(os.getpgid(self.current_process.pid), signal.SIGTERM)
+                    self._update_output("\n⏹ Script termination requested...\n")
+                    self.after(1000, self._force_kill_if_needed)  # Force kill after 1 second if still running
             except Exception as e:
                 self._update_output(f"\nError stopping script: {e}\n")
     
@@ -1097,8 +1111,12 @@ class App(TkinterDnD.Tk):   # IMPORTANT: use TkinterDnD root
         """Force kill the process if it didn't terminate gracefully"""
         if self.current_process and self.current_process.poll() is None:
             try:
-                self.current_process.kill()
-                self._update_output("\n⏹ Script forcefully terminated.\n")
+                if sys.platform == 'win32':
+                    # Already handled by taskkill above
+                    pass
+                else:
+                    os.killpg(os.getpgid(self.current_process.pid), signal.SIGKILL)
+                    self._update_output("\n⏹ Script forcefully terminated.\n")
             except:
                 pass
 

@@ -1,5 +1,94 @@
 [
   {
+    "timestamp": "2026-02-10 11:10:24",
+    "script": "wait_script.py",
+    "conda_env": "base",
+    "config_file": "wait_script_config.yml",
+    "config_values": {
+      "countdown_seconds": "1010"
+    },
+    "success": false,
+    "command": "cmd /c conda run --no-capture-output -n base python -u \"C:\\Users\\nathan.kossnar\\Documents\\Modeling\\modeling_GUI\\wait_script.py\" --config \"C:\\Users\\nathan.kossnar\\Documents\\Modeling\\modeling_GUI\\wait_script_config.yml\""
+  },
+  {
+    "timestamp": "2026-02-10 10:53:37",
+    "script": "gdal_update_geotrans.py",
+    "conda_env": "tree-seg",
+    "config_file": "gdal_update_geotrans_config.yml",
+    "config_values": {
+      "img_dir": "C:/Users/nathan.kossnar/Pictures/CCAP_codes.png",
+      "label_dir": "W:/2025_CA_Eastern_Municipal_WD_LUCD_097667.00/2_Models/!Model_Testing/block_4/unet_v2_aug_resnet101_lr-05_d0005_b16_adam_ce_rgn_epoch10_0.181_0.931_predictions"
+    },
+    "success": false,
+    "command": "cmd /c conda run --no-capture-output -n tree-seg python -u \"C:\\Users\\nathan.kossnar\\Documents\\Modeling\\modeling_GUI\\gdal_update_geotrans.py\" --config \"C:\\Users\\nathan.kossnar\\Documents\\Modeling\\modeling_GUI\\gdal_update_geotrans_config.yml\""
+  },
+  {
+    "timestamp": "2026-02-10 10:53:22",
+    "script": "wait_script.py",
+    "conda_env": "tree-seg",
+    "config_file": "wait_script_config.yml",
+    "config_values": {
+      "countdown_seconds": null
+    },
+    "success": false,
+    "command": "cmd /c conda run --no-capture-output -n tree-seg python -u \"C:\\Users\\nathan.kossnar\\Documents\\Modeling\\modeling_GUI\\wait_script.py\" --config \"C:\\Users\\nathan.kossnar\\Documents\\Modeling\\modeling_GUI\\wait_script_config.yml\""
+  },
+  {
+    "timestamp": "2026-02-10 10:52:20",
+    "script": "wait_script.py",
+    "conda_env": "tree-seg",
+    "config_file": "wait_script_config.yml",
+    "config_values": {
+      "countdown_seconds": "n"
+    },
+    "success": false,
+    "command": "cmd /c conda run --no-capture-output -n tree-seg python -u \"C:\\Users\\nathan.kossnar\\Documents\\Modeling\\modeling_GUI\\wait_script.py\" --config \"C:\\Users\\nathan.kossnar\\Documents\\Modeling\\modeling_GUI\\wait_script_config.yml\""
+  },
+  {
+    "timestamp": "2026-02-10 10:52:04",
+    "script": "wait_script.py",
+    "conda_env": "tree-seg",
+    "config_file": "wait_script_config.yml",
+    "config_values": {
+      "countdown_seconds": "10"
+    },
+    "success": false,
+    "command": "cmd /c conda run --no-capture-output -n tree-seg python -u \"C:\\Users\\nathan.kossnar\\Documents\\Modeling\\modeling_GUI\\wait_script.py\" --config \"C:\\Users\\nathan.kossnar\\Documents\\Modeling\\modeling_GUI\\wait_script_config.yml\""
+  },
+  {
+    "timestamp": "2026-02-10 10:37:15",
+    "script": "wait_script.py",
+    "conda_env": "base",
+    "config_file": "wait_script_config.yml",
+    "config_values": {
+      "countdown_seconds": "n"
+    },
+    "success": false,
+    "command": "cmd /c conda run --no-capture-output -n base python -u \"C:\\Users\\nathan.kossnar\\Documents\\Modeling\\modeling_GUI\\wait_script.py\" --config \"C:\\Users\\nathan.kossnar\\Documents\\Modeling\\modeling_GUI\\wait_script_config.yml\""
+  },
+  {
+    "timestamp": "2026-02-10 10:36:29",
+    "script": "wait_script.py",
+    "conda_env": "tree-seg",
+    "config_file": "wait_script_config.yml",
+    "config_values": {
+      "countdown_seconds": "6"
+    },
+    "success": true,
+    "command": "cmd /c conda run --no-capture-output -n tree-seg python -u \"C:\\Users\\nathan.kossnar\\Documents\\Modeling\\modeling_GUI\\wait_script.py\" --config \"C:\\Users\\nathan.kossnar\\Documents\\Modeling\\modeling_GUI\\wait_script_config.yml\""
+  },
+  {
+    "timestamp": "2026-02-10 10:36:09",
+    "script": "wait_script.py",
+    "conda_env": "tree-seg",
+    "config_file": "gdal_update_geotrans_config.yml",
+    "config_values": {
+      "countdown_seconds": "10"
+    },
+    "success": true,
+    "command": "cmd /c conda run --no-capture-output -n tree-seg python -u \"C:\\Users\\nathan.kossnar\\Documents\\Modeling\\modeling_GUI\\wait_script.py\" --config \"C:\\Users\\nathan.kossnar\\Documents\\Modeling\\modeling_GUI\\wait_script_config.yml\""
+  },
+  {
     "timestamp": "2026-02-06 12:46:35",
     "script": "wait_script.py",
     "conda_env": "tree-seg",
