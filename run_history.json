@@ -1,5 +1,77 @@
 [
   {
+    "timestamp": "2026-02-10 11:51:19",
+    "script": "gdal_update_geotrans.py",
+    "conda_env": "base",
+    "config_file": "gdal_update_geotrans_config.yml",
+    "config_values": {
+      "img_dir": "C:/Users/nathan.kossnar/Pictures/CCAP_codes.png",
+      "label_dir": "W:/2025_CA_Eastern_Municipal_WD_LUCD_097667.00/2_Models/!Model_Testing/block_4/unet_v2_aug_resnet101_lr-05_d0005_b16_adam_ce_rgn_epoch10_0.181_0.931_predictions"
+    },
+    "success": false,
+    "command": "cmd /c conda run --no-capture-output -n base python -u \"C:\\Users\\nathan.kossnar\\Documents\\Modeling\\modeling_GUI\\gdal_update_geotrans.py\" --config \"C:\\Users\\nathan.kossnar\\Documents\\Modeling\\modeling_GUI\\gdal_update_geotrans_config.yml\"",
+    "output": "Starting gdal_update_geotrans.py...\nUsing conda environment: base\nTraceback (most recent call last):\n  File \"C:\\Users\\nathan.kossnar\\Documents\\Modeling\\modeling_GUI\\gdal_update_geotrans.py\", line 24, in <module>\n    from osgeo import gdal\nModuleNotFoundError: No module named 'osgeo'\nERROR conda.cli.main_run:execute(49): `conda run python -u C:\\Users\\nathan.kossnar\\Documents\\Modeling\\modeling_GUI\\gdal_update_geotrans.py --config C:\\Users\\nathan.kossnar\\Documents\\Modeling\\modeling_GUI\\gdal_update_geotrans_config.yml` failed. (See above for error)\n\nScript exited with error code 1\n"
+  },
+  {
+    "timestamp": "2026-02-10 11:47:56",
+    "script": "wait_script.py",
+    "conda_env": "base",
+    "config_file": "wait_script_config.yml",
+    "config_values": {
+      "countdown_seconds": "1"
+    },
+    "success": true,
+    "command": "cmd /c conda run --no-capture-output -n base python -u \"C:\\Users\\nathan.kossnar\\Documents\\Modeling\\modeling_GUI\\wait_script.py\" --config \"C:\\Users\\nathan.kossnar\\Documents\\Modeling\\modeling_GUI\\wait_script_config.yml\""
+  },
+  {
+    "timestamp": "2026-02-10 11:40:56",
+    "script": "wait_script.py",
+    "conda_env": "base",
+    "config_file": "wait_script_config.yml",
+    "config_values": {
+      "countdown_seconds": "1010"
+    },
+    "success": false,
+    "command": "cmd /c conda run --no-capture-output -n base python -u \"C:\\Users\\nathan.kossnar\\Documents\\Modeling\\modeling_GUI\\wait_script.py\" --config \"C:\\Users\\nathan.kossnar\\Documents\\Modeling\\modeling_GUI\\wait_script_config.yml\"",
+    "output": "Starting wait_script.py...\nUsing conda environment: base\nLoading config from: C:\\Users\\nathan.kossnar\\Documents\\Modeling\\modeling_GUI\\wait_script_config.yml\nConfig exists: True\nConfig loaded successfully: {'countdown_seconds': '1010'}\nStarting 1010-second countdown...\nAlert: 1 second(s) elapsed\nAlert: 2 second(s) elapsed\n\n\u23f9 Script and all child processes terminated.\n\nScript exited with error code 1\n"
+  },
+  {
+    "timestamp": "2026-02-10 11:39:48",
+    "script": "gdal_update_geotrans.py",
+    "conda_env": "base",
+    "config_file": "gdal_update_geotrans_config.yml",
+    "config_values": {
+      "img_dir": "C:/Users/nathan.kossnar/Pictures/CCAP_codes.png",
+      "label_dir": "W:/2025_CA_Eastern_Municipal_WD_LUCD_097667.00/2_Models/!Model_Testing/block_4/unet_v2_aug_resnet101_lr-05_d0005_b16_adam_ce_rgn_epoch10_0.181_0.931_predictions"
+    },
+    "success": false,
+    "command": "cmd /c conda run --no-capture-output -n base python -u \"C:\\Users\\nathan.kossnar\\Documents\\Modeling\\modeling_GUI\\gdal_update_geotrans.py\" --config \"C:\\Users\\nathan.kossnar\\Documents\\Modeling\\modeling_GUI\\gdal_update_geotrans_config.yml\"",
+    "output": "Starting gdal_update_geotrans.py...\nUsing conda environment: base\nTraceback (most recent call last):\n  File \"C:\\Users\\nathan.kossnar\\Documents\\Modeling\\modeling_GUI\\gdal_update_geotrans.py\", line 24, in <module>\n    from osgeo import gdal\nModuleNotFoundError: No module named 'osgeo'\nERROR conda.cli.main_run:execute(49): `conda run python -u C:\\Users\\nathan.kossnar\\Documents\\Modeling\\modeling_GUI\\gdal_update_geotrans.py --config C:\\Users\\nathan.kossnar\\Documents\\Modeling\\modeling_GUI\\gdal_update_geotrans_config.yml` failed. (See above for error)\n\nScript exited with error code 1\n"
+  },
+  {
+    "timestamp": "2026-02-10 11:20:39",
+    "script": "wait_script.py",
+    "conda_env": "base",
+    "config_file": "wait_script_config.yml",
+    "config_values": {
+      "countdown_seconds": "1010"
+    },
+    "success": false,
+    "command": "cmd /c conda run --no-capture-output -n base python -u \"C:\\Users\\nathan.kossnar\\Documents\\Modeling\\modeling_GUI\\wait_script.py\" --config \"C:\\Users\\nathan.kossnar\\Documents\\Modeling\\modeling_GUI\\wait_script_config.yml\""
+  },
+  {
+    "timestamp": "2026-02-10 11:16:12",
+    "script": "gdal_update_geotrans.py",
+    "conda_env": "base",
+    "config_file": "gdal_update_geotrans_config.yml",
+    "config_values": {
+      "img_dir": "C:/Users/nathan.kossnar/Pictures/CCAP_codes.png",
+      "label_dir": "W:/2025_CA_Eastern_Municipal_WD_LUCD_097667.00/2_Models/!Model_Testing/block_4/unet_v2_aug_resnet101_lr-05_d0005_b16_adam_ce_rgn_epoch10_0.181_0.931_predictions"
+    },
+    "success": false,
+    "command": "cmd /c conda run --no-capture-output -n base python -u \"C:\\Users\\nathan.kossnar\\Documents\\Modeling\\modeling_GUI\\gdal_update_geotrans.py\" --config \"C:\\Users\\nathan.kossnar\\Documents\\Modeling\\modeling_GUI\\gdal_update_geotrans_config.yml\""
+  },
+  {
     "timestamp": "2026-02-10 11:15:00",
     "script": "gdal_update_geotrans.py",
     "conda_env": "base",

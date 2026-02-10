@@ -29,6 +29,25 @@ def get_resource_path(relative_path):
     return base_path / relative_path
 
 
+def get_config_path(config_filename):
+    """Get path for config files from the scripts directory (read-only source)"""
+    scripts_dir = Path(r"W:\!Scripts\GUIs\Land_Cover_Script_Interface\scripts")
+    return scripts_dir / config_filename
+
+
+def get_config_writable_path(config_filename):
+    """Get writable path for config files (user's AppData)"""
+    return get_writable_path(config_filename)
+
+
+def get_effective_config_path(config_filename):
+    """Get the effective config path - writable version if exists, otherwise scripts directory"""
+    writable_path = get_config_writable_path(config_filename)
+    if writable_path.exists():
+        return writable_path
+    return get_config_path(config_filename)
+
+
 def get_writable_path(relative_path):
     """Get path for writable files (configs, history). 
     When running as exe, use user's AppData folder instead of temp _MEIPASS"""
@@ -96,7 +115,7 @@ class App(TkinterDnD.Tk):   # IMPORTANT: use TkinterDnD root
         self.script_label.pack(pady=(10, 5))
         
         # Get all Python files from the scripts directory
-        script_dir = Path(r"W:\GUI\Land_Cover_Script_Interface\scripts")
+        script_dir = Path(r"W:\!Scripts\GUIs\Land_Cover_Script_Interface\scripts")
         python_files = [f.name for f in script_dir.glob('*.py') if f.name != 'drag_drop.py']
         
         self.script_dropdown = ctk.CTkComboBox(
@@ -329,7 +348,7 @@ class App(TkinterDnD.Tk):   # IMPORTANT: use TkinterDnD root
 
     def open_random_image(self):
         """Open a random image from the pet_tax folder"""
-        img_dir = Path(r"W:\GUI\Land_Cover_Script_Interface\pet_tax")
+        img_dir = Path(r"W:\!Scripts\GUIs\Land_Cover_Script_Interface\pet_tax")
         if not img_dir.exists():
             print("pet_tax folder not found")
             return
@@ -370,7 +389,8 @@ class App(TkinterDnD.Tk):   # IMPORTANT: use TkinterDnD root
     
     def get_script_docstring(self, script_name):
         """Extract the module-level docstring from a Python script"""
-        script_path = get_resource_path(script_name)
+        script_dir = Path(r"W:\!Scripts\GUIs\Land_Cover_Script_Interface\scripts")
+        script_path = script_dir / script_name
         try:
             with open(script_path, 'r', encoding='utf-8') as f:
                 content = f.read()
@@ -565,21 +585,15 @@ class App(TkinterDnD.Tk):   # IMPORTANT: use TkinterDnD root
         
         # Determine config file
         config_filename = self.get_config_filename(script_name)
-        config_path = get_writable_path(config_filename)
+        config_path = get_config_path(config_filename)
         
         # Create config file if it doesn't exist
         if not config_path.exists():
-            # First try to copy from bundled resources (if running as exe)
-            bundled_config = get_resource_path(config_filename)
-            if bundled_config.exists() and bundled_config != config_path:
-                config_path.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(bundled_config, config_path)
-            else:
-                # Create default config
-                default_data = {'folder': None, 'model_path': None, 'out_dir': None}
-                config_path.parent.mkdir(parents=True, exist_ok=True)
-                with open(config_path, 'w') as f:
-                    yaml.dump(default_data, f, default_flow_style=False)
+            # Create default config
+            default_data = {'folder': None, 'model_path': None, 'out_dir': None}
+            config_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(config_path, 'w') as f:
+                yaml.dump(default_data, f, default_flow_style=False)
         
         # Store current config file
         self.current_config_file = config_filename
@@ -587,16 +601,47 @@ class App(TkinterDnD.Tk):   # IMPORTANT: use TkinterDnD root
         # Load the config
         self.load_config_and_rebuild(config_filename)
 
+    def extract_yaml_descriptions(self, config_filename):
+        """Extract parameter descriptions from YAML comments"""
+        config_path = get_config_path(config_filename)
+        descriptions = {}
+        
+        try:
+            with open(config_path, 'r', encoding='utf-8') as f:
+                lines = f.readlines()
+            
+            current_comment = ""
+            for i, line in enumerate(lines):
+                stripped = line.strip()
+                # Collect comments
+                if stripped.startswith('#'):
+                    comment = stripped[1:].strip()
+                    current_comment = comment
+                # When we hit a parameter line, associate the comment with it
+                elif ':' in stripped and not stripped.startswith('#'):
+                    param_name = stripped.split(':')[0].strip()
+                    if current_comment and param_name:
+                        descriptions[param_name] = current_comment
+                    current_comment = ""  # Reset for next parameter
+        except Exception as e:
+            print(f"Error extracting descriptions: {e}")
+        
+        return descriptions
+    
     def load_config_and_rebuild(self, config_filename):
         """Load config file and rebuild the drag/drop fields dynamically"""
-        config_path = get_writable_path(config_filename)
+        # Use effective path (writable if exists, otherwise scripts dir)
+        config_path = get_effective_config_path(config_filename)
         
         # Clear existing fields
         for widget in self.scroll_frame.winfo_children():
             widget.destroy()
         self.field_entries.clear()
         
-        # Load config
+        # Extract parameter descriptions from YAML comments (always from scripts dir)
+        descriptions = self.extract_yaml_descriptions(config_filename)
+        
+        # Load config values from effective path
         try:
             with open(config_path, 'r') as f:
                 config_data = yaml.safe_load(f) or {}
@@ -610,10 +655,13 @@ class App(TkinterDnD.Tk):   # IMPORTANT: use TkinterDnD root
             label = ctk.CTkLabel(self.scroll_frame, text=f"{key.replace('_', ' ').title()}:", font=self.label_font)
             label.pack(pady=(10, 5))
             
+            # Use description as placeholder text if available, otherwise use default
+            placeholder_text = descriptions.get(key, f"Drag {key} here")
+            
             # Create entry
             entry = ctk.CTkEntry(
                 self.scroll_frame,
-                placeholder_text=f"Drag {key} here",
+                placeholder_text=placeholder_text,
                 height=40,
                 font=self.entry_font
             )
@@ -676,7 +724,8 @@ class App(TkinterDnD.Tk):   # IMPORTANT: use TkinterDnD root
             self.output_textbox.insert("1.0", "Error: No config file selected\n")
             return
             
-        config_path = get_writable_path(config_filename)
+        # Save to writable location (not the scripts directory)
+        config_path = get_config_writable_path(config_filename)
         
         try:
             with open(config_path, 'w') as f:
@@ -712,7 +761,7 @@ class App(TkinterDnD.Tk):   # IMPORTANT: use TkinterDnD root
         if not self.current_config_file:
             return True
         
-        config_path = get_writable_path(self.current_config_file)
+        config_path = get_effective_config_path(self.current_config_file)
         try:
             with open(config_path, 'r') as f:
                 saved_values = yaml.safe_load(f) or {}
@@ -731,7 +780,7 @@ class App(TkinterDnD.Tk):   # IMPORTANT: use TkinterDnD root
     def _show_mismatch_warning(self):
         """Show warning popup when GUI values don't match yml values"""
         # Get saved and GUI values
-        config_path = get_writable_path(self.current_config_file)
+        config_path = get_effective_config_path(self.current_config_file)
         with open(config_path, 'r') as f:
             saved_values = yaml.safe_load(f) or {}
         
@@ -920,7 +969,7 @@ class App(TkinterDnD.Tk):   # IMPORTANT: use TkinterDnD root
         # Update button to show running state
         self.wait_button.configure(
             text=f"⏳ Running {selected_script}...",
-            fg_color=["#FF9800", "#F57C00"],  # Orange color for running
+            fg_color=["#4CAF50", "#388E3C"],  # Green color for running
             state="disabled"
         )
         
@@ -936,19 +985,21 @@ class App(TkinterDnD.Tk):   # IMPORTANT: use TkinterDnD root
         # Read current config values
         self.current_config_values = {}
         if self.current_config_file:
-            config_path = get_writable_path(self.current_config_file)
+            config_path = get_effective_config_path(self.current_config_file)
             try:
                 with open(config_path, 'r') as f:
                     self.current_config_values = yaml.safe_load(f) or {}
             except:
                 pass
             
-        script_path = get_resource_path(selected_script)
+        # Get script path from scripts directory
+        script_dir = Path(r"W:\!Scripts\GUIs\Land_Cover_Script_Interface\scripts")
+        script_path = script_dir / selected_script
         
         # Get config file path (if exists)
         config_file_path = None
         if self.current_config_file:
-            config_file_path = str(get_writable_path(self.current_config_file))
+            config_file_path = str(get_effective_config_path(self.current_config_file))
         
         self.output_textbox.delete("1.0", "end")
         self.output_textbox.insert("1.0", f"Starting {selected_script}...\n")
@@ -1054,22 +1105,26 @@ class App(TkinterDnD.Tk):   # IMPORTANT: use TkinterDnD root
             else:
                 # Error already captured in stdout (stderr was redirected to stdout)
                 self.after(0, self._update_output, f"\nScript exited with error code {process.returncode}\n")
-                self.after(0, self._save_run_to_history, False)  # Save failed run
-                self.after(0, self._set_button_error)
-                self.after(0, self._restore_button_state)
-                # Get the full output from the textbox to show in error popup
-                def show_error_with_output():
+                # Get the full output from the textbox for history and error popup
+                def save_failed_run_with_output():
                     output_content = self.output_textbox.get("1.0", "end-1c")
+                    self._save_run_to_history(False, output_content)  # Save failed run with output
                     self._show_error_popup(output_content, include_context=True)
-                self.after(0, show_error_with_output)
+                self.after(0, save_failed_run_with_output)
+                self.after(0, self._set_button_success)
+                self.after(0, self._restore_button_state)
                 
         except Exception as e:
             error_msg = str(e)
             self.after(0, self._update_output, f"\nError running script: {e}\n")
-            self.after(0, self._save_run_to_history, False)  # Save failed run
-            self.after(0, self._set_button_error)
+            # Get the full output from the textbox for history
+            def save_exception_with_output():
+                output_content = self.output_textbox.get("1.0", "end-1c")
+                self._save_run_to_history(False, output_content)  # Save failed run with output
+                self._show_error_popup(error_msg, include_context=True)
+            self.after(0, save_exception_with_output)
+            self.after(0, self._set_button_success)
             self.after(0, self._restore_button_state)
-            self.after(0, lambda: self._show_error_popup(error_msg, include_context=True))
 
     def _set_button_success(self):
         """Set button color to default (success state)"""
@@ -1384,7 +1439,7 @@ class App(TkinterDnD.Tk):   # IMPORTANT: use TkinterDnD root
             with open(self.history_file, 'w') as f:
                 json.dump([], f)
     
-    def _save_run_to_history(self, success):
+    def _save_run_to_history(self, success, output=None):
         """Save current run configuration and results to history"""
         try:
             # Read existing history
@@ -1401,6 +1456,10 @@ class App(TkinterDnD.Tk):   # IMPORTANT: use TkinterDnD root
                 'success': success,
                 'command': getattr(self, 'current_command', 'Unknown')
             }
+            
+            # Add output/traceback for failed runs
+            if not success and output:
+                entry['output'] = output
             
             # Add to beginning of history
             history.insert(0, entry)
@@ -1443,7 +1502,7 @@ class App(TkinterDnD.Tk):   # IMPORTANT: use TkinterDnD root
         # Create history frame (centered, larger)
         history_frame = ctk.CTkFrame(
             self.history_overlay,
-            width=800,
+            width=560,
             height=600,
             corner_radius=10
         )
@@ -1461,18 +1520,46 @@ class App(TkinterDnD.Tk):   # IMPORTANT: use TkinterDnD root
         title_label.pack(pady=15)
         title_label.bind("<Button-1>", lambda e: "break")
         
+        # Add search bar
+        search_frame = ctk.CTkFrame(history_frame, fg_color="transparent")
+        search_frame.pack(pady=(0, 10), padx=20, fill="x")
+        search_frame.bind("<Button-1>", lambda e: "break")
+        
+        search_label = ctk.CTkLabel(
+            search_frame,
+            text="🔍 Search:",
+            font=("Segoe UI", 12)
+        )
+        search_label.pack(side="left", padx=(0, 10))
+        search_label.bind("<Button-1>", lambda e: "break")
+        
+        self.history_search_entry = ctk.CTkEntry(
+            search_frame,
+            placeholder_text="Filter by script name, environment, or config...",
+            font=("Segoe UI", 11),
+            height=35
+        )
+        self.history_search_entry.pack(side="left", fill="x", expand=True)
+        
         # Add scrollable frame for history items
         scroll_frame = ctk.CTkScrollableFrame(
             history_frame,
-            width=760,
-            height=450
+            width=560,
+            height=400
         )
         scroll_frame.pack(pady=10, padx=20, fill="both", expand=True)
         scroll_frame.bind("<Button-1>", lambda e: "break")
         
+        # Store full history and scroll frame for filtering
+        self.current_history = history
+        self.history_scroll_frame = scroll_frame
+        
         # Display each history entry
         for i, entry in enumerate(history):
             self._create_history_entry_widget(scroll_frame, entry, i)
+        
+        # Bind search to filter results
+        self.history_search_entry.bind("<KeyRelease>", lambda e: self._filter_history_entries())
         
         # Add close button
         close_button = ctk.CTkButton(
@@ -1488,15 +1575,14 @@ class App(TkinterDnD.Tk):   # IMPORTANT: use TkinterDnD root
     
     def _create_history_entry_widget(self, parent, entry, index):
         """Create a widget for a single history entry"""
-        # Determine colors based on success/failure
+        # Determine icon based on success/failure
         if entry.get('success', False):
-            bg_color = ("#E8F5E9", "#1B5E20")  # Green
-            hover_color = ("#C8E6C9", "#2E7D32")
-            status_icon = "✓"
+            status_icon = "✅"  # Green checkmark for success
         else:
-            bg_color = ("#FFEBEE", "#B71C1C")  # Red
-            hover_color = ("#FFCDD2", "#C62828")
-            status_icon = "✗"
+            status_icon = "❌"  # Red X for failure
+        
+        # Use default background color for all entries
+        bg_color = ("#F0F0F0", "#2B2B2B")  # Light gray / Dark gray (default)
         
         # Create frame for this entry
         entry_frame = ctk.CTkFrame(
@@ -1550,7 +1636,7 @@ class App(TkinterDnD.Tk):   # IMPORTANT: use TkinterDnD root
                 text=config_text,
                 font=("Segoe UI", 9),
                 anchor="w",
-                wraplength=700
+                wraplength=600
             )
             config_label.pack(fill="x", pady=(2, 0))
             config_label.bind("<Button-1>", lambda e: "break")
@@ -1650,6 +1736,13 @@ class App(TkinterDnD.Tk):   # IMPORTANT: use TkinterDnD root
         else:
             details += "  (No configuration values)\n"
         
+        # Add traceback/output for failed runs
+        if not entry.get('success', False) and entry.get('output'):
+            details += "\nOutput/Traceback:\n"
+            details += "="*60 + "\n"
+            details += entry.get('output', '')
+            details += "\n" + "="*60 + "\n"
+        
         # Create overlay for details
         self.details_overlay = ctk.CTkFrame(
             self,
@@ -1734,6 +1827,43 @@ class App(TkinterDnD.Tk):   # IMPORTANT: use TkinterDnD root
             self.clipboard_append(self.current_details)
             self.update()
             print("Details copied to clipboard")
+    
+    def _filter_history_entries(self):
+        """Filter history entries based on search text"""
+        if not hasattr(self, 'history_scroll_frame') or not hasattr(self, 'current_history'):
+            return
+        
+        search_text = self.history_search_entry.get().lower()
+        
+        # Clear current entries
+        for widget in self.history_scroll_frame.winfo_children():
+            widget.destroy()
+        
+        # Filter and display matching entries
+        filtered_count = 0
+        for i, entry in enumerate(self.current_history):
+            # Search in script name, conda env, config file, and config values
+            script = entry.get('script', '').lower()
+            conda_env = entry.get('conda_env', '').lower()
+            config_file = entry.get('config_file', '').lower()
+            config_values = str(entry.get('config_values', {})).lower()
+            
+            if (search_text in script or 
+                search_text in conda_env or 
+                search_text in config_file or 
+                search_text in config_values):
+                self._create_history_entry_widget(self.history_scroll_frame, entry, i)
+                filtered_count += 1
+        
+        # Show message if no results
+        if filtered_count == 0:
+            no_results_label = ctk.CTkLabel(
+                self.history_scroll_frame,
+                text="No matching entries found",
+                font=("Segoe UI", 12),
+                text_color="gray"
+            )
+            no_results_label.pack(pady=20)
     
     def _close_history_browser(self):
         """Close the history browser overlay"""
