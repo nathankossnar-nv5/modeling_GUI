@@ -9,22 +9,29 @@ block_cipher = None
 # Get the base directory
 base_dir = Path(SPECPATH)
 
-# Collect all data files
+# Collect all data files - only include files that actually exist
 datas = [
     # Image files
     (str(base_dir / 'img'), 'img'),
-    # YAML configuration files
-    (str(base_dir / 'debuffer_placeholder_config.yml'), '.'),
+    # YAML configuration files (only existing ones)
     (str(base_dir / 'finetune_workflow.yml'), '.'),
     (str(base_dir / 'gdal_update_geotrans_config.yml'), '.'),
-    (str(base_dir / 'wait_script_config.yml'), '.'),
-    # Additional Python scripts that are called by subprocess
-    (str(base_dir / 'debuffer_placeholder.py'), '.'),
-    (str(base_dir / 'gdal_update_geotrans.py'), '.'),
-    (str(base_dir / 'wait_script.py'), '.'),
-    # JSON file
-    (str(base_dir / 'run_history.json'), '.'),
 ]
+
+# Check if optional files exist and add them
+import os
+optional_files = [
+    'run_history.json',
+    'debuffer_placeholder_config.yml',
+    'wait_script_config.yml',
+    'debuffer_placeholder.py',
+    'gdal_update_geotrans.py',
+    'wait_script.py',
+]
+for file in optional_files:
+    file_path = base_dir / file
+    if os.path.exists(file_path):
+        datas.append((str(file_path), '.'))
 
 # Collect CustomTkinter data files
 datas += collect_data_files('customtkinter')
