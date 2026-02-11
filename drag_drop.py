@@ -287,20 +287,33 @@ class App(TkinterDnD.Tk):   # IMPORTANT: use TkinterDnD root
         self.history_file = get_writable_path("run_history.json")
         self._ensure_history_file()
 
-        # Button frame for Save and Clear buttons
+        # Button frame for all buttons
         button_frame = ctk.CTkFrame(self.main_frame)
         button_frame.pack(pady=10)
 
-        # Save button
-        self.save_button = ctk.CTkButton(
+        # Run script button
+        self.wait_button = ctk.CTkButton(
             button_frame,
-            text="Save Configuration",
-            command=self.save_config,
+            text=f"Run {self.script_dropdown.get()}",
+            command=self.run_wait_script,
             width=200,
             height=40,
             font=self.button_font
         )
-        self.save_button.pack(side="left", padx=5)
+        self.wait_button.pack(side="left", padx=5)
+
+        # Stop button
+        self.stop_button = ctk.CTkButton(
+            button_frame,
+            text="⏹ Stop",
+            command=self.stop_script,
+            width=100,
+            height=40,
+            font=self.button_font,
+            fg_color=["#D32F2F", "#B71C1C"],  # Red color
+            hover_color=["#F44336", "#D32F2F"]
+        )
+        # Don't pack initially - will show when script runs
 
         # Clear button
         self.clear_button = ctk.CTkButton(
@@ -325,34 +338,6 @@ class App(TkinterDnD.Tk):   # IMPORTANT: use TkinterDnD root
             hover_color=["#BA68C8", "#9C27B0"]
         )
         self.history_button.pack(side="left", padx=5)
-
-        # Run/Stop button frame
-        run_button_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
-        run_button_frame.pack(pady=10)
-
-        # Run script button
-        self.wait_button = ctk.CTkButton(
-            run_button_frame,
-            text=f"Run {self.script_dropdown.get()}",
-            command=self.run_wait_script,
-            width=200,
-            height=40,
-            font=self.button_font
-        )
-        self.wait_button.pack(side="left", padx=5)
-
-        # Stop button
-        self.stop_button = ctk.CTkButton(
-            run_button_frame,
-            text="⏹ Stop",
-            command=self.stop_script,
-            width=100,
-            height=40,
-            font=self.button_font,
-            fg_color=["#D32F2F", "#B71C1C"],  # Red color
-            hover_color=["#F44336", "#D32F2F"]
-        )
-        # Don't pack initially - will show when script runs
 
         # Output section label
         self.output_label = ctk.CTkLabel(self.main_frame, text="Script Output:", font=self.label_font)
@@ -686,8 +671,20 @@ class App(TkinterDnD.Tk):   # IMPORTANT: use TkinterDnD root
                 # Update main dropdown
                 self.env_dropdown.set(selected)
                 self.close_env_selection_popup()
-                # Now run the script
-                self._proceed_with_run()
+                
+                # Check for null/empty parameters before running
+                null_params = []
+                for key, entry in self.field_entries.items():
+                    value = entry.get().strip()
+                    if not value:
+                        null_params.append(key)
+                
+                if null_params:
+                    # Show popup warning about null parameters
+                    self.show_null_params_warning(null_params)
+                else:
+                    # All parameters are filled, proceed with run
+                    self._proceed_with_run()
             else:
                 # Flash the dropdown to indicate selection is required
                 popup_env_dropdown.configure(border_color="red", border_width=2)
@@ -723,6 +720,112 @@ class App(TkinterDnD.Tk):   # IMPORTANT: use TkinterDnD root
         if hasattr(self, 'env_overlay'):
             self.env_overlay.destroy()
             del self.env_overlay
+    
+    def show_null_params_warning(self, null_params):
+        """Display warning popup for null/empty parameters"""
+        # Create overlay frame (semi-transparent background)
+        self.params_overlay = ctk.CTkFrame(
+            self,
+            fg_color=("gray80", "gray20"),
+            bg_color="transparent"
+        )
+        self.params_overlay.place(relx=0, rely=0, relwidth=1, relheight=1)
+        
+        # Bind click on overlay to close it
+        self.params_overlay.bind("<Button-1>", lambda e: self.close_params_warning())
+        
+        # Create warning frame (centered, taller for scrolling if needed)
+        params_frame = ctk.CTkFrame(
+            self.params_overlay,
+            width=550,
+            height=min(500, 200 + len(null_params) * 35),  # Dynamic height based on number of params
+            corner_radius=10
+        )
+        params_frame.place(relx=0.5, rely=0.5, anchor="center")
+        
+        # Prevent clicks on params_frame from closing the overlay
+        params_frame.bind("<Button-1>", lambda e: "break")
+        
+        # Add title label
+        title_label = ctk.CTkLabel(
+            params_frame,
+            text="⚠️ Missing Parameters",
+            font=("Segoe UI", 16, "bold"),
+            text_color=("#E57373", "#EF5350")  # Red color for warning
+        )
+        title_label.pack(pady=20)
+        title_label.bind("<Button-1>", lambda e: "break")
+        
+        # Add instruction label
+        instruction_label = ctk.CTkLabel(
+            params_frame,
+            text="The following parameters are empty and need values:",
+            font=("Segoe UI", 12)
+        )
+        instruction_label.pack(pady=(5, 10))
+        instruction_label.bind("<Button-1>", lambda e: "break")
+        
+        # Create scrollable frame for parameter list
+        scroll_frame = ctk.CTkScrollableFrame(
+            params_frame,
+            width=480,
+            height=min(250, len(null_params) * 35 + 20),
+            fg_color=("gray90", "gray17")
+        )
+        scroll_frame.pack(pady=10, padx=20, fill="both", expand=True)
+        scroll_frame.bind("<Button-1>", lambda e: "break")
+        
+        # List each null parameter
+        for param in null_params:
+            param_label = ctk.CTkLabel(
+                scroll_frame,
+                text=f"• {param.replace('_', ' ').title()}",
+                font=("Segoe UI", 11),
+                anchor="w"
+            )
+            param_label.pack(pady=3, padx=10, anchor="w")
+            param_label.bind("<Button-1>", lambda e: "break")
+        
+        # Button frame
+        button_frame = ctk.CTkFrame(params_frame, fg_color="transparent")
+        button_frame.pack(pady=15)
+        button_frame.bind("<Button-1>", lambda e: "break")
+        
+        # Add "Fill Parameters" button
+        fill_button = ctk.CTkButton(
+            button_frame,
+            text="Fill Parameters",
+            command=self.close_params_warning,
+            width=150,
+            height=35,
+            font=("Segoe UI", 11, "bold"),
+            fg_color=("#1976D2", "#1565C0")  # Blue color
+        )
+        fill_button.pack(side="left", padx=5)
+        fill_button.bind("<Button-1>", lambda e: "break")
+        
+        # Add "Run Anyway" button (in case user wants to proceed with nulls)
+        def run_anyway():
+            self.close_params_warning()
+            self._proceed_with_run()
+        
+        run_anyway_button = ctk.CTkButton(
+            button_frame,
+            text="Run Anyway",
+            command=run_anyway,
+            width=120,
+            height=35,
+            font=("Segoe UI", 11, "bold"),
+            fg_color=("#FF9800", "#F57C00")  # Orange color for caution
+        )
+        run_anyway_button.pack(side="left", padx=5)
+        run_anyway_button.bind("<Button-1>", lambda e: "break")
+    
+    def close_params_warning(self):
+        """Close the null parameters warning overlay"""
+        if hasattr(self, 'params_overlay'):
+            self.params_overlay.destroy()
+            del self.params_overlay
     
     def show_help_popup(self):
         """Show help popup explaining the app's functionality"""
@@ -1212,9 +1315,6 @@ Result: Script appears in dropdown with 5 auto-generated input fields!
             entry.drop_target_register(DND_FILES)
             entry.dnd_bind("<<Drop>>", lambda e, k=key: self.drop(e, k))
             
-            # Bind change detection to reset save button color
-            entry.bind("<KeyRelease>", self._on_field_change)
-            
             # Store reference
             self.field_entries[key] = entry
 
@@ -1226,27 +1326,22 @@ Result: Script appears in dropdown with 5 auto-generated input fields!
             entry.delete(0, "end")
             entry.insert(0, file_path)
             print(f"{field_name}:", file_path)
-            # Reset save button color when field changes
-            self._reset_save_button_color()
     
-    def _on_field_change(self, event=None):
-        """Reset save button color when any field changes"""
-        self._reset_save_button_color()
-    
-    def _reset_save_button_color(self):
-        """Reset save button to default blue color"""
-        self.save_button.configure(
-            fg_color=["#3B8ED0", "#1F6AA5"],  # Default blue
-            hover_color=["#36719F", "#144870"]  # Default blue hover
-        )
-
     def clear_fields(self):
-        """Clear all entry fields"""
-        for entry in self.field_entries.values():
+        """Clear all entry fields and reload descriptions from yaml"""
+        # Extract descriptions from the current config file
+        descriptions = {}
+        if self.current_config_file:
+            descriptions = self.extract_yaml_descriptions(self.current_config_file)
+        
+        # Clear fields and restore placeholder text with descriptions
+        for key, entry in self.field_entries.items():
             entry.delete(0, "end")
+            # Update placeholder text with description if available
+            placeholder_text = descriptions.get(key, f"Drag {key} here")
+            entry.configure(placeholder_text=placeholder_text)
+        
         print("All fields cleared")
-        # Reset save button color when fields are cleared
-        self._reset_save_button_color()
 
     def save_config(self):
         # Get values from all dynamic entry widgets
@@ -1281,12 +1376,6 @@ Result: Script appears in dropdown with 5 auto-generated input fields!
             self.output_textbox.insert("end", "-" * 40 + "\n")
             self.output_textbox.insert("end", config_contents)
             self.output_textbox.insert("end", "-" * 40 + "\n")
-            
-            # Change save button to green to indicate successful save
-            self.save_button.configure(
-                fg_color=["#4CAF50", "#388E3C"],  # Green color
-                hover_color=["#66BB6A", "#43A047"]  # Lighter green hover
-            )
             
         except Exception as e:
             print(f"Error saving configuration: {e}")
@@ -1493,6 +1582,18 @@ Result: Script appears in dropdown with 5 auto-generated input fields!
         if not selected_env or selected_env == "Select Conda Environment" or selected_env == "No conda environments found":
             # Show popup to select environment
             self.show_env_selection_popup()
+            return
+        
+        # Check for null/empty parameters
+        null_params = []
+        for key, entry in self.field_entries.items():
+            value = entry.get().strip()
+            if not value:
+                null_params.append(key)
+        
+        if null_params:
+            # Show popup warning about null parameters
+            self.show_null_params_warning(null_params)
             return
         
         # Proceed directly with run - values will be saved to AppData automatically
@@ -2268,9 +2369,6 @@ Result: Script appears in dropdown with 5 auto-generated input fields!
             self.output_textbox.insert("end", "-" * 40 + "\n")
             for key, value in config_values.items():
                 self.output_textbox.insert("end", f"{key}: {value}\n")
-            
-            # Reset save button color since values changed
-            self._reset_save_button_color()
             
         except Exception as e:
             print(f"Error loading history entry: {e}")

@@ -1,5 +1,64 @@
 [
   {
+    "timestamp": "2026-02-11 14:26:59",
+    "script": "wait_script.py",
+    "conda_env": "tree-seg",
+    "config_file": "wait_script_config.yml",
+    "config_values": {
+      "countdown_seconds": "1"
+    },
+    "success": true,
+    "command": "\"C:\\Program Files\\ArcGIS\\Pro\\bin\\Python\\condabin\\conda.bat\" run --no-capture-output -n tree-seg python -u \"W:\\^!Scripts\\GUIs\\Land_Cover_Script_Interface\\scripts\\wait_script.py\" --config \"C:\\Users\\nathan.kossnar\\Documents\\Modeling\\modeling_GUI\\wait_script_config.yml\""
+  },
+  {
+    "timestamp": "2026-02-11 14:22:00",
+    "script": "wait_script.py",
+    "conda_env": "base",
+    "config_file": "wait_script_config.yml",
+    "config_values": {
+      "countdown_seconds": "1"
+    },
+    "success": true,
+    "command": "\"C:\\Program Files\\ArcGIS\\Pro\\bin\\Python\\condabin\\conda.bat\" run --no-capture-output -n base python -u \"W:\\^!Scripts\\GUIs\\Land_Cover_Script_Interface\\scripts\\wait_script.py\" --config \"C:\\Users\\nathan.kossnar\\Documents\\Modeling\\modeling_GUI\\wait_script_config.yml\""
+  },
+  {
+    "timestamp": "2026-02-11 14:19:35",
+    "script": "wait_script.py",
+    "conda_env": "tree-seg",
+    "config_file": "wait_script_config.yml",
+    "config_values": {
+      "countdown_seconds": "1"
+    },
+    "success": true,
+    "command": "\"C:\\Program Files\\ArcGIS\\Pro\\bin\\Python\\condabin\\conda.bat\" run --no-capture-output -n tree-seg python -u \"W:\\^!Scripts\\GUIs\\Land_Cover_Script_Interface\\scripts\\wait_script.py\" --config \"C:\\Users\\nathan.kossnar\\Documents\\Modeling\\modeling_GUI\\wait_script_config.yml\""
+  },
+  {
+    "timestamp": "2026-02-11 14:18:46",
+    "script": "create_meta_block.py",
+    "conda_env": "base",
+    "config_file": "create_meta_block_config.yml",
+    "config_values": {
+      "folder": null,
+      "model_path": null,
+      "out_dir": null
+    },
+    "success": false,
+    "command": "\"C:\\Program Files\\ArcGIS\\Pro\\bin\\Python\\condabin\\conda.bat\" run --no-capture-output -n base python -u \"W:\\^!Scripts\\GUIs\\Land_Cover_Script_Interface\\scripts\\create_meta_block.py\" --config \"C:\\Users\\nathan.kossnar\\Documents\\Modeling\\modeling_GUI\\create_meta_block_config.yml\"",
+    "output": "Starting create_meta_block.py...\nUsing conda environment: base\nCommand: \"C:\\Program Files\\ArcGIS\\Pro\\bin\\Python\\condabin\\conda.bat\" run --no-capture-output -n base python -u \"W:\\^!Scripts\\GUIs\\Land_Cover_Script_Interface\\scripts\\create_meta_block.py\" --config \"C:\\Users\\nathan.kossnar\\Documents\\Modeling\\modeling_GUI\\create_meta_block_config.yml\"\nTraceback (most recent call last):\n  File \"W:\\!Scripts\\GUIs\\Land_Cover_Script_Interface\\scripts\\create_meta_block.py\", line 11, in <module>\n    import psycopg2\nModuleNotFoundError: No module named 'psycopg2'\nERROR conda.cli.main_run:execute(49): `conda run python -u W:\\!Scripts\\GUIs\\Land_Cover_Script_Interface\\scripts\\create_meta_block.py --config C:\\Users\\nathan.kossnar\\Documents\\Modeling\\modeling_GUI\\create_meta_block_config.yml` failed. (See above for error)\n\nScript exited with error code 1\n"
+  },
+  {
+    "timestamp": "2026-02-11 14:17:10",
+    "script": "wait_script.py",
+    "conda_env": "tree-seg",
+    "config_file": "wait_script_config.yml",
+    "config_values": {
+      "countdown_seconds": null
+    },
+    "success": false,
+    "command": "\"C:\\Program Files\\ArcGIS\\Pro\\bin\\Python\\condabin\\conda.bat\" run --no-capture-output -n tree-seg python -u \"W:\\^!Scripts\\GUIs\\Land_Cover_Script_Interface\\scripts\\wait_script.py\" --config \"C:\\Users\\nathan.kossnar\\Documents\\Modeling\\modeling_GUI\\wait_script_config.yml\"",
+    "output": "Starting wait_script.py...\nUsing conda environment: tree-seg\nCommand: \"C:\\Program Files\\ArcGIS\\Pro\\bin\\Python\\condabin\\conda.bat\" run --no-capture-output -n tree-seg python -u \"W:\\^!Scripts\\GUIs\\Land_Cover_Script_Interface\\scripts\\wait_script.py\" --config \"C:\\Users\\nathan.kossnar\\Documents\\Modeling\\modeling_GUI\\wait_script_config.yml\"\nLoading config from: C:\\Users\\nathan.kossnar\\Documents\\Modeling\\modeling_GUI\\wait_script_config.yml\nConfig exists: True\nConfig loaded successfully: {'countdown_seconds': None}\nTraceback (most recent call last):\n  File \"W:\\!Scripts\\GUIs\\Land_Cover_Script_Interface\\scripts\\wait_script.py\", line 58, in <module>\n    countdown_seconds = int(float(config.get('countdown_seconds', 10)))  # Convert to float first, then int\nTypeError: float() argument must be a string or a number, not 'NoneType'\nERROR conda.cli.main_run:execute(49): `conda run python -u W:\\!Scripts\\GUIs\\Land_Cover_Script_Interface\\scripts\\wait_script.py --config C:\\Users\\nathan.kossnar\\Documents\\Modeling\\modeling_GUI\\wait_script_config.yml` failed. (See above for error)\n\nScript exited with error code 1\n"
+  },
+  {
     "timestamp": "2026-02-11 14:14:13",
     "script": "wait_script.py",
     "conda_env": "tree-seg",
