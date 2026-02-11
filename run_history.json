@@ -1,5 +1,41 @@
 [
   {
+    "timestamp": "2026-02-11 14:14:13",
+    "script": "wait_script.py",
+    "conda_env": "tree-seg",
+    "config_file": "wait_script_config.yml",
+    "config_values": {
+      "countdown_seconds": "1"
+    },
+    "success": true,
+    "command": "\"C:\\Program Files\\ArcGIS\\Pro\\bin\\Python\\condabin\\conda.bat\" run --no-capture-output -n tree-seg python -u \"W:\\^!Scripts\\GUIs\\Land_Cover_Script_Interface\\scripts\\wait_script.py\" --config \"C:\\Users\\nathan.kossnar\\Documents\\Modeling\\modeling_GUI\\wait_script_config.yml\""
+  },
+  {
+    "timestamp": "2026-02-11 14:11:02",
+    "script": "wait_script.py",
+    "conda_env": "base",
+    "config_file": "wait_script_config.yml",
+    "config_values": {
+      "countdown_seconds": "2"
+    },
+    "success": true,
+    "command": "\"C:\\Program Files\\ArcGIS\\Pro\\bin\\Python\\condabin\\conda.bat\" run --no-capture-output -n base python -u \"W:\\^!Scripts\\GUIs\\Land_Cover_Script_Interface\\scripts\\wait_script.py\" --config \"C:\\Users\\nathan.kossnar\\Documents\\Modeling\\modeling_GUI\\wait_script_config.yml\""
+  },
+  {
+    "timestamp": "2026-02-11 14:09:40",
+    "script": "create_meta_block.py",
+    "conda_env": "tree-seg",
+    "config_file": "create_meta_block_config.yml",
+    "config_values": {
+      "folder": null,
+      "model_path": null,
+      "out_dir": null
+    },
+    "success": false,
+    "command": "\"C:\\Program Files\\ArcGIS\\Pro\\bin\\Python\\condabin\\conda.bat\" run --no-capture-output -n tree-seg python -u \"W:\\^!Scripts\\GUIs\\Land_Cover_Script_Interface\\scripts\\create_meta_block.py\" --config \"C:\\Users\\nathan.kossnar\\Documents\\Modeling\\modeling_GUI\\create_meta_block_config.yml\"",
+    "output": "Starting create_meta_block.py...\nUsing conda environment: tree-seg\nCommand: \"C:\\Program Files\\ArcGIS\\Pro\\bin\\Python\\condabin\\conda.bat\" run --no-capture-output -n tree-seg python -u \"W:\\^!Scripts\\GUIs\\Land_Cover_Script_Interface\\scripts\\create_meta_block.py\" --config \"C:\\Users\\nathan.kossnar\\Documents\\Modeling\\modeling_GUI\\create_meta_block_config.yml\"\n\n\u23f9 Script and all child processes terminated.\n\nScript exited with error code 1\n"
+  },
+  {
     "timestamp": "2026-02-10 11:51:19",
     "script": "gdal_update_geotrans.py",
     "conda_env": "base",

@@ -615,6 +615,115 @@ class App(TkinterDnD.Tk):   # IMPORTANT: use TkinterDnD root
             self.doc_overlay.destroy()
             del self.doc_overlay
     
+    def show_env_selection_popup(self):
+        """Display conda environment selection popup"""
+        # Create overlay frame (semi-transparent background)
+        self.env_overlay = ctk.CTkFrame(
+            self,
+            fg_color=("gray80", "gray20"),
+            bg_color="transparent"
+        )
+        self.env_overlay.place(relx=0, rely=0, relwidth=1, relheight=1)
+        
+        # Bind click on overlay to close it
+        self.env_overlay.bind("<Button-1>", lambda e: self.close_env_selection_popup())
+        
+        # Create environment selection frame (centered)
+        env_frame = ctk.CTkFrame(
+            self.env_overlay,
+            width=500,
+            height=300,
+            corner_radius=10
+        )
+        env_frame.place(relx=0.5, rely=0.5, anchor="center")
+        
+        # Prevent clicks on env_frame from closing the overlay
+        env_frame.bind("<Button-1>", lambda e: "break")
+        
+        # Add title label
+        title_label = ctk.CTkLabel(
+            env_frame,
+            text="⚠️ Conda Environment Required",
+            font=("Segoe UI", 16, "bold"),
+            text_color=("#E57373", "#EF5350")  # Red color for warning
+        )
+        title_label.pack(pady=20)
+        title_label.bind("<Button-1>", lambda e: "break")
+        
+        # Add instruction label
+        instruction_label = ctk.CTkLabel(
+            env_frame,
+            text="Please select a Conda environment to run the script:",
+            font=("Segoe UI", 12)
+        )
+        instruction_label.pack(pady=10)
+        instruction_label.bind("<Button-1>", lambda e: "break")
+        
+        # Get conda environments
+        conda_envs = self.get_conda_environments()
+        
+        # Add environment dropdown
+        popup_env_dropdown = ctk.CTkComboBox(
+            env_frame,
+            values=conda_envs if conda_envs else ["No conda environments found"],
+            width=400,
+            height=40,
+            font=("Segoe UI", 11)
+        )
+        popup_env_dropdown.set("Select Conda Environment")
+        popup_env_dropdown.pack(pady=15, padx=20)
+        popup_env_dropdown.bind("<Button-1>", lambda e: "break")
+        
+        # Button frame
+        button_frame = ctk.CTkFrame(env_frame, fg_color="transparent")
+        button_frame.pack(pady=20)
+        button_frame.bind("<Button-1>", lambda e: "break")
+        
+        # Add confirm button
+        def confirm_selection():
+            selected = popup_env_dropdown.get()
+            if selected and selected != "Select Conda Environment" and selected != "No conda environments found":
+                # Update main dropdown
+                self.env_dropdown.set(selected)
+                self.close_env_selection_popup()
+                # Now run the script
+                self._proceed_with_run()
+            else:
+                # Flash the dropdown to indicate selection is required
+                popup_env_dropdown.configure(border_color="red", border_width=2)
+                self.after(1000, lambda: popup_env_dropdown.configure(border_color=("#979DA2", "#565B5E"), border_width=2))
+        
+        confirm_button = ctk.CTkButton(
+            button_frame,
+            text="Confirm and Run",
+            command=confirm_selection,
+            width=150,
+            height=35,
+            font=("Segoe UI", 11, "bold"),
+            fg_color=("#4CAF50", "#388E3C")  # Green color
+        )
+        confirm_button.pack(side="left", padx=5)
+        confirm_button.bind("<Button-1>", lambda e: "break")
+        
+        # Add cancel button
+        cancel_button = ctk.CTkButton(
+            button_frame,
+            text="Cancel",
+            command=self.close_env_selection_popup,
+            width=100,
+            height=35,
+            font=("Segoe UI", 11, "bold"),
+            fg_color=("#757575", "#616161")  # Gray color
+        )
+        cancel_button.pack(side="left", padx=5)
+        cancel_button.bind("<Button-1>", lambda e: "break")
+    
+    def close_env_selection_popup(self):
+        """Close the environment selection overlay"""
+        if hasattr(self, 'env_overlay'):
+            self.env_overlay.destroy()
+            del self.env_overlay
+    
     def show_help_popup(self):
         """Show help popup explaining the app's functionality"""
         # Create overlay frame (like history browser)
@@ -1377,6 +1486,13 @@ Result: Script appears in dropdown with 5 auto-generated input fields!
         # Prevent multiple simultaneous executions
         if self.script_is_running:
             self.output_textbox.insert("end", "\nA script is already running. Please wait...\n")
+            return
+        
+        # Check if conda environment is selected
+        selected_env = self.env_dropdown.get()
+        if not selected_env or selected_env == "Select Conda Environment" or selected_env == "No conda environments found":
+            # Show popup to select environment
+            self.show_env_selection_popup()
             return
         
         # Proceed directly with run - values will be saved to AppData automatically
