@@ -1,5 +1,38 @@
 [
   {
+    "timestamp": "2026-02-12 15:57:44",
+    "script": "wait_script.py",
+    "conda_env": "Bundled Python",
+    "config_file": "wait_script_config.yml",
+    "config_values": {
+      "countdown_seconds": "2"
+    },
+    "success": true,
+    "command": "C:\\Users\\nathan.kossnar\\AppData\\Local\\ESRI\\conda\\envs\\insight\\python.exe -u W:\\Tools\\GUIs\\Land_Cover_Script_Interface\\scripts\\wait_script.py --config C:\\Users\\nathan.kossnar\\Documents\\Modeling\\modeling_GUI\\wait_script_config.yml"
+  },
+  {
+    "timestamp": "2026-02-12 15:57:39",
+    "script": "wait_script.py",
+    "conda_env": "tree-seg",
+    "config_file": "wait_script_config.yml",
+    "config_values": {
+      "countdown_seconds": "2"
+    },
+    "success": true,
+    "command": "\"C:\\Program Files\\ArcGIS\\Pro\\bin\\Python\\condabin\\conda.bat\" run --no-capture-output -n tree-seg python -u \"W:\\Tools\\GUIs\\Land_Cover_Script_Interface\\scripts\\wait_script.py\" --config \"C:\\Users\\nathan.kossnar\\Documents\\Modeling\\modeling_GUI\\wait_script_config.yml\""
+  },
+  {
+    "timestamp": "2026-02-11 14:46:07",
+    "script": "wait_script.py",
+    "conda_env": "Bundled Python",
+    "config_file": "wait_script_config.yml",
+    "config_values": {
+      "countdown_seconds": "2"
+    },
+    "success": true,
+    "command": "C:\\Users\\nathan.kossnar\\AppData\\Local\\ESRI\\conda\\envs\\insight\\python.exe -u W:\\!Scripts\\GUIs\\Land_Cover_Script_Interface\\scripts\\wait_script.py --config C:\\Users\\nathan.kossnar\\Documents\\Modeling\\modeling_GUI\\wait_script_config.yml"
+  },
+  {
     "timestamp": "2026-02-11 14:26:59",
     "script": "wait_script.py",
     "conda_env": "tree-seg",

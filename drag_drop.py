@@ -32,7 +32,7 @@ def get_resource_path(relative_path):
 
 def get_config_path(config_filename):
     """Get path for config files from the scripts directory (read-only source)"""
-    scripts_dir = Path(r"W:\!Scripts\GUIs\Land_Cover_Script_Interface\scripts")
+    scripts_dir = Path(r"W:\Tools\GUIs\Land_Cover_Script_Interface\scripts")
     return scripts_dir / config_filename
 
 
@@ -222,7 +222,7 @@ class App(TkinterDnD.Tk):   # IMPORTANT: use TkinterDnD root
         self.script_label.pack(pady=(10, 5))
         
         # Get all Python files from the scripts directory
-        script_dir = Path(r"W:\!Scripts\GUIs\Land_Cover_Script_Interface\scripts")
+        script_dir = Path(r"W:\Tools\GUIs\Land_Cover_Script_Interface\scripts")
         python_files = [f.name for f in script_dir.glob('*.py') if f.name != 'drag_drop.py']
         
         self.script_dropdown = ctk.CTkComboBox(
@@ -237,23 +237,39 @@ class App(TkinterDnD.Tk):   # IMPORTANT: use TkinterDnD root
             self.script_dropdown.set(python_files[0])
         self.script_dropdown.pack(pady=5)
 
-        # Conda environment selector
-        self.env_label = ctk.CTkLabel(self.main_frame, text="Conda Environment:", font=self.label_font)
-        self.env_label.pack(pady=(10, 5))
+        # Runtime Mode Selector - Pill Toggle
+        self.mode_label = ctk.CTkLabel(self.main_frame, text="Python Runtime:", font=self.label_font)
+        self.mode_label.pack(pady=(10, 5))
         
+        # Create horizontal frame for toggle and conda dropdown
+        self.runtime_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
+        self.runtime_frame.pack(pady=5)
+        
+        self.runtime_mode = ctk.CTkSegmentedButton(
+            self.runtime_frame,
+            values=["Bundled Python", "Conda Environment"],
+            width=300,
+            height=40,
+            font=self.entry_font,
+            command=self._on_runtime_mode_change
+        )
+        self.runtime_mode.set("Bundled Python")
+        self.runtime_mode.pack(side="left", padx=(0, 10))
+
         # Get conda environments
         conda_envs = self.get_conda_environments()
         
+        # Conda environment selector (initially hidden)
         self.env_dropdown = ctk.CTkComboBox(
-            self.main_frame,
+            self.runtime_frame,
             values=conda_envs if conda_envs else ["No conda environments found"],
-            width=400,
+            width=300,
             height=40,
             font=self.entry_font
         )
         # Set default placeholder text
         self.env_dropdown.set("Select Conda Environment")
-        self.env_dropdown.pack(pady=5)
+        # Don't pack initially - will be shown when Conda mode is selected
 
         # View documentation button
         self.doc_button = ctk.CTkButton(
@@ -397,6 +413,16 @@ class App(TkinterDnD.Tk):   # IMPORTANT: use TkinterDnD root
         if python_files:
             self.on_script_selected(python_files[0])
         
+        # Check if bundled Python is available when running as exe
+        if getattr(sys, 'frozen', False):
+            exe_dir = Path(sys.executable).parent
+            python_exe = exe_dir / 'python.exe'
+            if not python_exe.exists():
+                # Running as exe but no bundled Python found - likely onefile mode
+                print("WARNING: Bundled Python not found. 'Bundled Python' mode may not work.")
+                print(f"Expected python.exe at: {python_exe}")
+                print("If this is a onefile build, please rebuild using onedir mode for bundled Python support.")
+        
         # If splash was shown, close it and show main window
         if hasattr(self, 'splash'):
             self.after(100, self._finish_initialization)
@@ -408,6 +434,157 @@ class App(TkinterDnD.Tk):   # IMPORTANT: use TkinterDnD root
             del self.splash
         self.deiconify()  # Show the main window
 
+    def _on_runtime_mode_change(self, choice):
+        """Handle runtime mode change"""
+        if choice == "Conda Environment":
+            # Show conda environment selector next to toggle
+            self.env_dropdown.pack(side="left", padx=(0, 0))
+        else:
+            # Hide conda environment selector
+            self.env_dropdown.pack_forget()
+    
+    def _get_bundled_python_executable(self):
+        """Get the correct Python executable for bundled mode (Python 3.x only)"""
+        # Check if running as PyInstaller bundle
+        if getattr(sys, 'frozen', False):
+            # Running as compiled exe
+            # First priority: Look for python.exe in the same directory as the exe (onedir mode)
+            exe_dir = Path(sys.executable).parent
+            python_exe = exe_dir / 'python.exe'
+            
+            self.after(0, self._update_output, f"Debug: Looking for bundled Python at: {python_exe}\n")
+            
+            if python_exe.exists():
+                self.after(0, self._update_output, f"Debug: Found bundled Python!\n")
+                return str(python_exe)
+            else:
+                self.after(0, self._update_output, f"Debug: Bundled Python not found. Exe directory: {exe_dir}\n")
+                # List files in exe directory for debugging
+                try:
+                    files = list(exe_dir.iterdir())
+                    self.after(0, self._update_output, f"Debug: Files in exe dir: {', '.join(f.name for f in files[:10])}\n")
+                except:
+                    pass
+            
+            # Second priority: Try to find python.exe in the extracted _MEIPASS directory
+            if hasattr(sys, '_MEIPASS'):
+                # Look for python executable in common locations within bundle
+                possible_paths = [
+                    Path(sys._MEIPASS) / 'python.exe',
+                    Path(sys._MEIPASS) / 'Scripts' / 'python.exe',
+                ]
+                
+                for python_path in possible_paths:
+                    if python_path.exists() and self._is_python3(str(python_path)):
+                        return str(python_path)
+            
+            # If no bundled python.exe found, look for system Python 3.x
+            # Try common Python installation paths
+            import winreg
+            
+            # Collect all Python installations with version info
+            python_candidates = []
+            
+            try:
+                # Try to find Python from registry (HKEY_LOCAL_MACHINE)
+                key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Python\PythonCore")
+                for i in range(20):  # Check up to 20 versions
+                    try:
+                        version_key = winreg.EnumKey(key, i)
+                        # Skip Python 2.x versions
+                        if version_key.startswith('2.'):
+                            continue
+                        
+                        version_path = winreg.OpenKey(key, version_key + r"\InstallPath")
+                        install_path = winreg.QueryValue(version_path, None)
+                        python_exe = Path(install_path) / "python.exe"
+                        
+                        if python_exe.exists() and self._is_python3(str(python_exe)):
+                            # Parse version for sorting (prefer higher versions)
+                            try:
+                                version_parts = version_key.split('.')
+                                version_tuple = tuple(int(p) for p in version_parts)
+                                python_candidates.append((version_tuple, str(python_exe)))
+                            except:
+                                python_candidates.append(((3, 0), str(python_exe)))
+                        
+                        winreg.CloseKey(version_path)
+                    except WindowsError:
+                        continue
+                winreg.CloseKey(key)
+            except WindowsError:
+                pass
+            
+            # Also check HKEY_CURRENT_USER
+            try:
+                key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"SOFTWARE\Python\PythonCore")
+                for i in range(20):
+                    try:
+                        version_key = winreg.EnumKey(key, i)
+                        if version_key.startswith('2.'):
+                            continue
+                        
+                        version_path = winreg.OpenKey(key, version_key + r"\InstallPath")
+                        install_path = winreg.QueryValue(version_path, None)
+                        python_exe = Path(install_path) / "python.exe"
+                        
+                        if python_exe.exists() and self._is_python3(str(python_exe)):
+                            try:
+                                version_parts = version_key.split('.')
+                                version_tuple = tuple(int(p) for p in version_parts)
+                                python_candidates.append((version_tuple, str(python_exe)))
+                            except:
+                                python_candidates.append(((3, 0), str(python_exe)))
+                        
+                        winreg.CloseKey(version_path)
+                    except WindowsError:
+                        continue
+                winreg.CloseKey(key)
+            except WindowsError:
+                pass
+            
+            # Return the highest version Python 3.x found
+            if python_candidates:
+                python_candidates.sort(reverse=True)  # Sort by version, highest first
+                self.after(0, self._update_output, f"Debug: Found system Python: {python_candidates[0][1]}\n")
+                return python_candidates[0][1]
+            
+            # Last resort: try 'python3' or 'python' command
+            for cmd in ['python3', 'python']:
+                if self._is_python3(cmd):
+                    self.after(0, self._update_output, f"Debug: Using command: {cmd}\n")
+                    return cmd
+            
+            # If all else fails, show error
+            error_msg = (
+                "ERROR: Python interpreter not found!\n\n"
+                "For 'Bundled Python' mode to work, you need to:\n"
+                "1. Rebuild the exe using 'onedir' mode (see drag_drop.spec)\n"
+                "2. Distribute the entire folder (not just the .exe)\n\n"
+                "OR switch to 'Conda Environment' mode and select an environment.\n"
+            )
+            self.after(0, self._update_output, error_msg)
+            raise FileNotFoundError("No Python interpreter found for bundled mode. Please rebuild with onedir mode or use Conda Environment mode.")
+        else:
+            # Running as script, use current Python
+            return sys.executable
+    
+    def _is_python3(self, python_path):
+        """Check if the given python executable is Python 3.x"""
+        try:
+            result = subprocess.run(
+                [python_path, '-c', 'import sys; print(sys.version_info[0])'],
+                capture_output=True,
+                text=True,
+                timeout=2
+            )
+            if result.returncode == 0:
+                version = result.stdout.strip()
+                return version == '3'
+        except:
+            pass
+        return False
+    
     def get_conda_environments(self):
         """Get list of available conda environments"""
         try:
@@ -469,7 +646,7 @@ class App(TkinterDnD.Tk):   # IMPORTANT: use TkinterDnD root
 
     def open_random_image(self):
         """Open a random image from the pet_tax folder"""
-        img_dir = Path(r"W:\!Scripts\GUIs\Land_Cover_Script_Interface\pet_tax")
+        img_dir = Path(r"W:\Tools\GUIs\Land_Cover_Script_Interface\pet_tax")
         if not img_dir.exists():
             print("pet_tax folder not found")
             return
@@ -510,7 +687,7 @@ class App(TkinterDnD.Tk):   # IMPORTANT: use TkinterDnD root
     
     def get_script_docstring(self, script_name):
         """Extract the module-level docstring from a Python script"""
-        script_dir = Path(r"W:\!Scripts\GUIs\Land_Cover_Script_Interface\scripts")
+        script_dir = Path(r"W:\Tools\GUIs\Land_Cover_Script_Interface\scripts")
         script_path = script_dir / script_name
         try:
             with open(script_path, 'r', encoding='utf-8') as f:
@@ -870,7 +1047,7 @@ MAIN FEATURES:
 
 1. Script Selection
    • Choose from available Python scripts in the dropdown menu
-   • Upload .py/.yml to W:\\!Scripts\\GUIs\\Land_Cover_Script_Interface\\scripts
+   • Upload .py/.yml to W:\\Tools\\GUIs\\Land_Cover_Script_Interface\\scripts
 
 2. Conda Environment
    • Select the Python environment to run your script
@@ -907,7 +1084,7 @@ OVERVIEW
 This tool automatically discovers Python scripts from the network drive and generates UI fields based on YAML configuration files.
 
 Key Concepts:
-• Scripts Location: W:\\!Scripts\\GUIs\\Land_Cover_Script_Interface\\scripts
+• Scripts Location: W:\\Tools\\GUIs\\Land_Cover_Script_Interface\\scripts
 • Auto-Discovery: Scripts detected via *.py file scanning
 • Config-Driven UI: Parameter fields generated from *_config.yml files
 • Conda Integration: Scripts run in user-selected conda environments
@@ -952,7 +1129,7 @@ QUICK STEPS
     ```````````````````````
 3. UPLOAD FILES
    • Copy both .py and .yml files to:
-     W:\\!Scripts\\GUIs\\Land_Cover_Script_Interface\\scripts\\
+     W:\\Tools\\GUIs\\Land_Cover_Script_Interface\\scripts\\
    • Files must be in the same directory
 
 4. TEST IN GUI
@@ -1040,7 +1217,7 @@ batch_size: 16
 use_gpu: true
 ---
 
-Both files uploaded to W:\\!Scripts\\GUIs\\Land_Cover_Script_Interface\\scripts
+Both files uploaded to W:\\Tools\\GUIs\\Land_Cover_Script_Interface\\scripts
 
 Result: Script appears in dropdown with 5 auto-generated input fields!
 """
@@ -1577,12 +1754,15 @@ Result: Script appears in dropdown with 5 auto-generated input fields!
             self.output_textbox.insert("end", "\nA script is already running. Please wait...\n")
             return
         
-        # Check if conda environment is selected
-        selected_env = self.env_dropdown.get()
-        if not selected_env or selected_env == "Select Conda Environment" or selected_env == "No conda environments found":
-            # Show popup to select environment
-            self.show_env_selection_popup()
-            return
+        # Check runtime mode and environment selection
+        runtime_mode = self.runtime_mode.get()
+        if runtime_mode == "Conda Environment":
+            # Check if conda environment is selected
+            selected_env = self.env_dropdown.get()
+            if not selected_env or selected_env == "Select Conda Environment" or selected_env == "No conda environments found":
+                # Show popup to select environment
+                self.show_env_selection_popup()
+                return
         
         # Check for null/empty parameters
         null_params = []
@@ -1620,7 +1800,14 @@ Result: Script appears in dropdown with 5 auto-generated input fields!
         # Store script context for error reporting
         self.current_script_name = selected_script
         self.script_start_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        self.current_conda_env = self.env_dropdown.get()  # Store conda environment
+        
+        # Store runtime mode and conda environment (if applicable)
+        runtime_mode = self.runtime_mode.get()
+        if runtime_mode == "Conda Environment":
+            self.current_conda_env = self.env_dropdown.get()  # Store conda environment
+        else:
+            self.current_conda_env = "Bundled Python"  # Indicate bundled mode
+        
         self.current_command = None  # Will be set when subprocess starts
         
         # Save current GUI values to AppData config file for this run
@@ -1647,7 +1834,7 @@ Result: Script appears in dropdown with 5 auto-generated input fields!
                 config_file_path = None
             
         # Get script path from scripts directory
-        script_dir = Path(r"W:\!Scripts\GUIs\Land_Cover_Script_Interface\scripts")
+        script_dir = Path(r"W:\Tools\GUIs\Land_Cover_Script_Interface\scripts")
         script_path = script_dir / selected_script
         
         self.output_textbox.delete("1.0", "end")
@@ -1660,57 +1847,86 @@ Result: Script appears in dropdown with 5 auto-generated input fields!
 
     def _execute_script(self, script_path, config_file_path=None):
         try:
-            # Get selected conda environment
-            selected_env = self.env_dropdown.get()
+            # Check runtime mode
+            runtime_mode = self.runtime_mode.get()
             
             # Set environment variables for unbuffered output
             env = os.environ.copy()
             env['PYTHONUNBUFFERED'] = '1'
             
-            # Build command based on whether conda env is selected
-            # Check if a valid conda environment is selected (not placeholder or error text)
-            if (selected_env and 
-                selected_env not in ["No conda environments found", "Select Conda Environment"]):
-                # Use conda run to execute in selected environment
-                # Use full path if available, otherwise use command name
-                conda_cmd = getattr(self, 'conda_full_path', None) or getattr(self, 'conda_executable', 'conda') or 'conda'
+            # Determine which Python to use based on runtime mode
+            if runtime_mode == "Bundled Python":
+                # Use bundled Python (from exe or current Python)
+                self.after(0, self._update_output, f"Using bundled Python interpreter\n")
                 
-                # For .bat files, we need to build a proper command string with escaped quotes
-                if conda_cmd.endswith('.bat'):
-                    # Escape the paths properly for cmd
-                    # Use ^ to escape special characters in cmd
-                    script_path_safe = str(script_path).replace('!', '^!')
-                    config_path_safe = str(config_file_path).replace('!', '^!') if config_file_path else None
-                    
-                    # Build command with proper quoting
-                    command = f'"{conda_cmd}" run --no-capture-output -n {selected_env} python -u "{script_path_safe}"'
-                    if config_path_safe:
-                        command += f' --config "{config_path_safe}"'
-                    use_shell = True
-                else:
-                    # Regular conda executable - build as a list
-                    command = [conda_cmd, 'run', '--no-capture-output', '-n', selected_env, 
-                              'python', '-u', str(script_path)]
-                    if config_file_path:
-                        command.extend(['--config', str(config_file_path)])
-                    use_shell = False
+                # When running as PyInstaller exe, sys.executable points to the exe itself
+                # We need to find the actual Python interpreter
+                try:
+                    python_exe = self._get_bundled_python_executable()
+                except FileNotFoundError as e:
+                    # No Python found - show helpful error
+                    self.after(0, self._update_output, f"\n{str(e)}\n")
+                    self.after(0, self._show_bundled_python_error)
+                    self.after(0, self._set_button_error)
+                    self.after(0, self._restore_button_state)
+                    return
                 
-                self.after(0, self._update_output, f"Using conda environment: {selected_env}\n")
-                if isinstance(command, list):
-                    command_display = ' '.join(f'"{c}"' if ' ' in str(c) else str(c) for c in command)
-                else:
-                    command_display = command
-                self.after(0, self._update_output, f"Command: {command_display}\n")
-            else:
-                # Use system Python - don't use shell for direct python execution
-                self.after(0, self._update_output, f"Using system Python (no conda environment selected)\n")
-                command = [sys.executable, '-u', str(script_path)]
+                command = [python_exe, '-u', str(script_path)]
                 if config_file_path:
                     command.extend(['--config', config_file_path])
                 use_shell = False
+            else:
+                # Use conda environment
+                selected_env = self.env_dropdown.get()
+                
+                # Build command based on whether conda env is selected
+                # Check if a valid conda environment is selected (not placeholder or error text)
+                if (selected_env and 
+                    selected_env not in ["No conda environments found", "Select Conda Environment"]):
+                    # Use conda run to execute in selected environment
+                    # Use full path if available, otherwise use command name
+                    conda_cmd = getattr(self, 'conda_full_path', None) or getattr(self, 'conda_executable', 'conda') or 'conda'
+                    
+                    # For .bat files, we need to build a proper command string with escaped quotes
+                    if conda_cmd.endswith('.bat'):
+                        # Escape the paths properly for cmd
+                        # Use ^ to escape special characters in cmd
+                        script_path_safe = str(script_path).replace('!', '^!')
+                        config_path_safe = str(config_file_path).replace('!', '^!') if config_file_path else None
+                        
+                        # Build command with proper quoting
+                        command = f'"{conda_cmd}" run --no-capture-output -n {selected_env} python -u "{script_path_safe}"'
+                        if config_path_safe:
+                            command += f' --config "{config_path_safe}"'
+                        use_shell = True
+                    else:
+                        # Regular conda executable - build as a list
+                        command = [conda_cmd, 'run', '--no-capture-output', '-n', selected_env, 
+                                  'python', '-u', str(script_path)]
+                        if config_file_path:
+                            command.extend(['--config', str(config_file_path)])
+                        use_shell = False
+                    
+                    self.after(0, self._update_output, f"Using conda environment: {selected_env}\n")
+                    if isinstance(command, list):
+                        command_display = ' '.join(f'"{c}"' if ' ' in str(c) else str(c) for c in command)
+                    else:
+                        command_display = command
+                    self.after(0, self._update_output, f"Command: {command_display}\n")
+                else:
+                    # No valid conda environment selected but conda mode is chosen
+                    self.after(0, self._update_output, f"Warning: No valid conda environment selected, using bundled Python instead\n")
+                    python_exe = self._get_bundled_python_executable()
+                    command = [python_exe, '-u', str(script_path)]
+                    if config_file_path:
+                        command.extend(['--config', config_file_path])
+                    use_shell = False
             
             try:
                 # Execute with appropriate shell setting
+                # Hide console window on Windows
+                creation_flags = subprocess.CREATE_NO_WINDOW if sys.platform == 'win32' else 0
+                
                 process = subprocess.Popen(
                     command,
                     stdout=subprocess.PIPE,
@@ -1719,20 +1935,22 @@ Result: Script appears in dropdown with 5 auto-generated input fields!
                     bufsize=0,
                     shell=use_shell,
                     env=env,
-                    creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if sys.platform == 'win32' else 0
+                    creationflags=creation_flags
                 )
             except FileNotFoundError as e:
                 # If conda command fails, fall back to system Python
                 if selected_env and selected_env != "No conda environments found":
                     self.after(0, self._update_output, f"Warning: Could not activate conda environment '{selected_env}', using system Python instead.\n")
                     command = [sys.executable, '-u', str(script_path)]
+                    creation_flags = subprocess.CREATE_NO_WINDOW if sys.platform == 'win32' else 0
                     process = subprocess.Popen(
                         command,
                         stdout=subprocess.PIPE,
                         stderr=subprocess.STDOUT,
                         text=True,
                         bufsize=0,
-                        env=env
+                        env=env,
+                        creationflags=creation_flags
                     )
                 else:
                     raise
@@ -1841,6 +2059,86 @@ Result: Script appears in dropdown with 5 auto-generated input fields!
                     self._update_output("\n⏹ Script forcefully terminated.\n")
             except:
                 pass
+
+    def _show_bundled_python_error(self):
+        """Show error popup for missing bundled Python"""
+        error_msg = """Bundled Python Not Available
+
+This executable was built in "onefile" mode and doesn't include 
+a usable Python interpreter for running external scripts.
+
+OPTIONS:
+
+1. REBUILD THE EXE (Recommended for distribution)
+   • The build configuration has already been updated
+   • Run: pyinstaller drag_drop.spec
+   • This will create a folder with python.exe included
+   • Distribute the entire folder (not just the .exe)
+
+2. USE CONDA ENVIRONMENT MODE (Quick fix)
+   • Switch to "Conda Environment" mode
+   • Select an environment with Python 3.x
+   • Scripts will run using your system's Python
+
+See REBUILD_INSTRUCTIONS.md for detailed steps."""
+        
+        # Create overlay frame
+        overlay = ctk.CTkFrame(
+            self,
+            fg_color=("#FFE0B2", "#E65100"),  # Orange warning colors
+            bg_color="transparent"
+        )
+        overlay.place(relx=0, rely=0, relwidth=1, relheight=1)
+        
+        # Create message frame
+        msg_frame = ctk.CTkFrame(overlay, fg_color=("#FFFFFF", "#2B2B2B"), corner_radius=15)
+        msg_frame.place(relx=0.5, rely=0.5, anchor="center", relwidth=0.7, relheight=0.6)
+        
+        # Title
+        title = ctk.CTkLabel(
+            msg_frame,
+            text="⚠️ Bundled Python Not Found",
+            font=("Segoe UI", 20, "bold"),
+            text_color=("#E65100", "#FF9800")
+        )
+        title.pack(pady=(20, 10))
+        
+        # Error message
+        msg_text = ctk.CTkTextbox(
+            msg_frame,
+            font=("Segoe UI", 12),
+            wrap="word",
+            fg_color=("gray90", "gray20")
+        )
+        msg_text.pack(pady=10, padx=20, fill="both", expand=True)
+        msg_text.insert("1.0", error_msg)
+        msg_text.configure(state="disabled")
+        
+        # Buttons frame
+        btn_frame = ctk.CTkFrame(msg_frame, fg_color="transparent")
+        btn_frame.pack(pady=15)
+        
+        # Switch to Conda mode button
+        switch_btn = ctk.CTkButton(
+            btn_frame,
+            text="Switch to Conda Mode",
+            command=lambda: [overlay.destroy(), self.runtime_mode.set("Conda Environment"), self._on_runtime_mode_change("Conda Environment")],
+            fg_color=("#4CAF50", "#388E3C"),
+            width=180,
+            height=40
+        )
+        switch_btn.pack(side="left", padx=5)
+        
+        # Close button
+        close_btn = ctk.CTkButton(
+            btn_frame,
+            text="Close",
+            command=overlay.destroy,
+            fg_color=("#757575", "#424242"),
+            width=120,
+            height=40
+        )
+        close_btn.pack(side="left", padx=5)
 
     def _show_error_popup(self, error_message, include_context=False):
         """Display error popup overlay with red background"""

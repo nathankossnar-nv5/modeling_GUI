@@ -37,10 +37,20 @@ if %errorlevel% equ 0 (
     echo Build completed successfully!
     echo ========================================
     echo.
-    echo Your executable is located at:
-    echo   dist\ModelingGUI.exe
+    echo Your application folder is located at:
+    echo   dist\ModelingGUI\
     echo.
-    echo You can now run the application by double-clicking the .exe file
+    echo The folder contains:
+    echo   - ModelingGUI.exe (your GUI application)
+    echo   - python.exe (bundled Python interpreter)
+    echo   - All required dependencies
+    echo.
+    echo TO DISTRIBUTE:
+    echo   1. Zip the entire "dist\ModelingGUI" folder
+    echo   2. Send to users
+    echo   3. Users extract and run ModelingGUI.exe
+    echo.
+    echo The application is fully self-contained with bundled Python!
 ) else (
     echo.
     echo Build failed. Please check the errors above.
